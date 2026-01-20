@@ -2388,29 +2388,77 @@
             });
         }
 
-        // Convert remaining blank slots to 'off' for staff who have reached target hours
-        // This ensures everyone has exactly 2 days marked as OFF (even if not consecutive)
+        // Final cleanup: ensure all staff have 37.5 hours and exactly 2 days off
+        // For staff short on hours due to weekend constraints:
+        // 1. Convert blank weekend slots to OFF
+        // 2. Convert a weekday OFF to floating shift
         function markRemainingBlanksAsOff(state) {
             staff.forEach(s => {
-                const currentHours = state.getHours(s.id);
+                let currentHours = state.getHours(s.id);
                 console.log(`${s.name}: ${currentHours}/${TARGET_HOURS} hours`);
 
-                // Only mark blanks as off if staff has reached target hours
-                // If they haven't, leave blank so it's visible as an issue
-                if (currentHours < TARGET_HOURS) {
-                    console.warn(`${s.name} only has ${currentHours} hours - not marking blanks as OFF`);
-                    return;
+                // Get current assignments
+                const blanks = DAYS.filter(d => !state.getAssignment(s.id, d));
+                const offDays = DAYS.filter(d => state.getAssignment(s.id, d) === 'off');
+                const weekdayOffs = offDays.filter(d => ['mon', 'tue', 'wed', 'thu', 'fri'].includes(d));
+                const weekendBlanks = blanks.filter(d => d === 'sat' || d === 'sun');
+
+                // If staff is short on hours and has weekend blanks + weekday offs
+                if (currentHours < TARGET_HOURS && weekendBlanks.length > 0 && weekdayOffs.length > 0) {
+                    console.log(`${s.name}: Fixing hours - has ${weekendBlanks.length} weekend blanks, ${weekdayOffs.length} weekday offs`);
+
+                    // First, mark weekend blanks as OFF
+                    weekendBlanks.forEach(day => {
+                        state.assignments[s.id][day] = 'off';
+                        console.log(`Marked weekend blank as OFF for ${s.name} on ${day}`);
+                    });
+
+                    // Now convert weekday offs to floating shifts until we reach target hours
+                    // Try to preserve consecutive days off by picking the most isolated off day first
+                    const sortedWeekdayOffs = [...weekdayOffs].sort((a, b) => {
+                        // Score based on adjacency to other off days (lower = more isolated = convert first)
+                        const allOffs = [...offDays, ...weekendBlanks];
+                        const aIdx = DAYS.indexOf(a);
+                        const bIdx = DAYS.indexOf(b);
+
+                        const aHasAdjacentOff = allOffs.some(d => {
+                            const dIdx = DAYS.indexOf(d);
+                            return d !== a && Math.abs(dIdx - aIdx) === 1;
+                        });
+                        const bHasAdjacentOff = allOffs.some(d => {
+                            const dIdx = DAYS.indexOf(d);
+                            return d !== b && Math.abs(dIdx - bIdx) === 1;
+                        });
+
+                        // Prefer to convert days that DON'T have adjacent offs (preserve consecutive)
+                        if (aHasAdjacentOff && !bHasAdjacentOff) return 1;  // Keep a, convert b first
+                        if (!aHasAdjacentOff && bHasAdjacentOff) return -1; // Convert a first
+                        return 0;
+                    });
+
+                    for (const day of sortedWeekdayOffs) {
+                        if (state.getHours(s.id) >= TARGET_HOURS) break;
+
+                        // Convert this OFF day to floating
+                        state.assignments[s.id][day] = 'floating';
+                        state.staffHours[s.id] = (state.staffHours[s.id] || 0) + SHIFTS.floating.hours;
+                        console.log(`Converted OFF to floating for ${s.name} on ${day}, now ${state.getHours(s.id)} hours`);
+                    }
                 }
 
-                // Mark blanks as off for staff at target hours
-                DAYS.forEach(day => {
-                    const current = state.getAssignment(s.id, day);
-                    if (!current) {
-                        // Blank slot - mark as day off
-                        state.assignments[s.id][day] = 'off';
-                        console.log(`Marked blank slot as OFF for ${s.name} on ${day}`);
-                    }
-                });
+                // Final pass: mark any remaining blanks as OFF for staff at target hours
+                currentHours = state.getHours(s.id);
+                if (currentHours >= TARGET_HOURS) {
+                    DAYS.forEach(day => {
+                        const current = state.getAssignment(s.id, day);
+                        if (!current) {
+                            state.assignments[s.id][day] = 'off';
+                            console.log(`Marked blank slot as OFF for ${s.name} on ${day}`);
+                        }
+                    });
+                } else {
+                    console.warn(`${s.name} still only has ${currentHours} hours after fixes`);
+                }
             });
         }
 
