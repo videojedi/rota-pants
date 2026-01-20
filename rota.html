@@ -1236,6 +1236,17 @@
                 } else if (staffWeekendTotal > avg10Week + 1) {
                     score -= 10;
                 }
+
+                // Priority boost for staff with mid-week days off
+                // They NEED weekend shifts to reach 37.5 hours
+                const offDays = DAYS.filter(d => state.getAssignment(staffId, d) === 'off');
+                const hasMidWeekOff = offDays.some(d => ['mon', 'tue', 'wed', 'thu', 'fri'].includes(d));
+                const hasNoWeekendOff = !offDays.includes('sat') && !offDays.includes('sun');
+
+                if (hasMidWeekOff && hasNoWeekendOff) {
+                    // This staff member has mid-week days off and needs weekend shifts
+                    score += 30; // High priority boost
+                }
             }
 
             // Staff preferences
