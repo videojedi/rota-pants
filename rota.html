@@ -2682,32 +2682,40 @@
                 results.push({
                     week: w + 1,
                     date: formatWeekDisplay(currentWeekStart),
-                    errors: validation.errors.length,
-                    warnings: validation.warnings.length
+                    errors: validation.errors,
+                    warnings: validation.warnings
                 });
             }
-            
+
             // Return to first week of the generated period
             currentWeekStart = new Date(startWeek);
             loadWeekData();
             updateWeekDisplay();
             renderTable();
-            
-            // Show summary
-            const totalErrors = results.reduce((sum, r) => sum + r.errors, 0);
-            const totalWarnings = results.reduce((sum, r) => sum + r.warnings, 0);
+
+            // Collect all warnings and errors with week info
+            const allErrors = [];
+            const allWarnings = [];
+            results.forEach(r => {
+                r.errors.forEach(e => allErrors.push(`Week ${r.week}: ${e}`));
+                r.warnings.forEach(w => allWarnings.push(`Week ${r.week}: ${w}`));
+            });
+
+            const totalErrors = allErrors.length;
+            const totalWarnings = allWarnings.length;
 
             const el = document.getElementById('generationResult');
             el.style.display = 'block';
             el.style.background = '';
 
             if (totalErrors > 0) {
+                const allIssues = [...allErrors, ...allWarnings];
                 el.className = 'generation-result generation-error';
                 el.innerHTML = `
                     <details>
                         <summary>⚠️ 10 weeks generated with ${totalErrors} error(s) and ${totalWarnings} warning(s) - click for details</summary>
                         <div class="details-list">
-                            • Use Prev/Next to review each week and see specific issues
+                            ${allIssues.map(m => '• ' + m).join('<br>')}
                         </div>
                     </details>`;
             } else if (totalWarnings > 0) {
@@ -2716,8 +2724,7 @@
                     <details>
                         <summary>⚠️ 10 weeks generated with ${totalWarnings} warning(s) - click for details</summary>
                         <div class="details-list">
-                            • Weekend shifts balanced over the period<br>
-                            • Use Prev/Next to review each week
+                            ${allWarnings.map(m => '• ' + m).join('<br>')}
                         </div>
                     </details>`;
             } else {
