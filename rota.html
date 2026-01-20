@@ -2037,6 +2037,10 @@
             console.log('Pass 4: Filling gaps with floating shifts...');
             fillGapsWithFloating(state);
 
+            // PASS 5: Convert remaining blank slots to 'off' for staff at target hours
+            console.log('Pass 5: Marking remaining blanks as days off...');
+            markRemainingBlanksAsOff(state);
+
             // Apply state to rota
             rota = state.toRota();
 
@@ -2343,6 +2347,26 @@
                             console.log(`Filled empty slot for ${s.name} on ${day} with floating`);
                         }
                     }
+                }
+            });
+        }
+
+        // Convert remaining blank slots to 'off' for staff who have reached target hours
+        // This ensures everyone has exactly 2 days marked as OFF (even if not consecutive)
+        function markRemainingBlanksAsOff(state) {
+            staff.forEach(s => {
+                const currentHours = state.getHours(s.id);
+
+                // Only mark blanks as off if staff has reached target hours
+                if (currentHours >= TARGET_HOURS) {
+                    DAYS.forEach(day => {
+                        const current = state.getAssignment(s.id, day);
+                        if (!current) {
+                            // Blank slot - mark as day off
+                            state.assignments[s.id][day] = 'off';
+                            console.log(`Marked blank slot as OFF for ${s.name} on ${day}`);
+                        }
+                    });
                 }
             });
         }
