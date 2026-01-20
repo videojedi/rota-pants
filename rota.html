@@ -37,8 +37,8 @@
             --mid-text: #f0e6a8;
             --long-bg: #5c1e1e;
             --long-text: #f0a8a8;
-            --split-bg: #3d1e5c;
-            --split-text: #d4a8f0;
+            --floating-bg: #3d1e5c;
+            --floating-text: #d4a8f0;
             --off-bg: #2a2a3e;
             --off-text: #888;
         }
@@ -52,8 +52,8 @@
             --mid-text: #856404;
             --long-bg: #f8d7da;
             --long-text: #721c24;
-            --split-bg: #e2d5f1;
-            --split-text: #4a235a;
+            --floating-bg: #e2d5f1;
+            --floating-text: #4a235a;
             --off-bg: #f5f5f5;
             --off-text: #666;
         }
@@ -206,8 +206,8 @@
                 --mid-text: #856404;
                 --long-bg: #f8d7da;
                 --long-text: #721c24;
-                --split-bg: #e2d5f1;
-                --split-text: #4a235a;
+                --floating-bg: #e2d5f1;
+                --floating-text: #4a235a;
                 --off-bg: #f5f5f5;
                 --off-text: #666;
             }
@@ -327,10 +327,25 @@
             td.shift-cell.late { background: #cce5ff !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
             td.shift-cell.mid { background: #fff3cd !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
             td.shift-cell.long { background: #f8d7da !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-            td.shift-cell.split { background: #e2d5f1 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+            td.shift-cell.floating { background: #e2d5f1 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
             td.shift-cell.off { background: #f5f5f5 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
             th { background: #34495e !important; color: #fff !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
             th.weekend { background: #8e44ad !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+
+            /* Multi-week print styles */
+            #multiWeekPrint {
+                display: block !important;
+            }
+            #multiWeekPrint .print-week-page {
+                padding: 10px;
+            }
+            #multiWeekPrint .rota-table {
+                width: 100%;
+                border-collapse: collapse;
+            }
+            #multiWeekPrint .coverage-detail {
+                display: block !important;
+            }
         }
         
         .rota-container {
@@ -403,9 +418,9 @@
             background: var(--long-bg);
             color: var(--long-text);
         }
-        td.shift-cell.split {
-            background: var(--split-bg);
-            color: var(--split-text);
+        td.shift-cell.floating {
+            background: var(--floating-bg);
+            color: var(--floating-text);
         }
         td.shift-cell.off {
             background: var(--off-bg);
@@ -462,7 +477,7 @@
         .legend-color.late-legend { background: var(--late-bg); }
         .legend-color.mid-legend { background: var(--mid-bg); }
         .legend-color.long-legend { background: var(--long-bg); }
-        .legend-color.split-legend { background: var(--split-bg); }
+        .legend-color.floating-legend { background: var(--floating-bg); }
         .legend-color.off-legend { background: var(--off-bg); border: 1px solid var(--border-color); }
         
         .coverage-detail {
@@ -506,7 +521,7 @@
         .time-slot.late-cover { background: #cce5ff; }
         .time-slot.mid-cover { background: #fff3cd; }
         .time-slot.long-cover { background: #f8d7da; }
-        .time-slot.split-cover { background: #e2d5f1; }
+        .time-slot.floating-cover { background: #e2d5f1; }
         .time-slot.mixed-cover { background: linear-gradient(135deg, #d4edda 50%, #cce5ff 50%); }
         
         /* Generation result messages */
@@ -580,17 +595,19 @@
             <button class="action-btn primary" onclick="generateBestFitRota()">Generate This Week</button>
             <button class="action-btn secondary" onclick="generate10Weeks()" style="background: #8e44ad;">Generate 10 Weeks</button>
             <button class="action-btn danger" onclick="clearAll()">Clear All</button>
-            <button class="action-btn print" onclick="printRota()">Print Weekly Schedule</button>
+            <button class="action-btn print" onclick="printRota()">Print Schedule</button>
+            <button class="action-btn secondary" onclick="openImportExportModal()" style="background: #2c3e50;">Import/Export CSV</button>
+            <button class="action-btn secondary" onclick="openPreferencesModal()" style="background: #16a085;">Staff Preferences</button>
         </div>
         <div id="generationResult" class="generation-result" style="display: none;"></div>
-        <p style="margin: 10px 0; color: var(--text-muted); font-size: 13px;">Auto-generation uses Early, Mid, and Late shifts. Coverage: 1-2 staff (max 3 during 12:00-16:30 changeover). Each person works exactly 37.5 hours.</p>
+        <p style="margin: 10px 0; color: var(--text-muted); font-size: 13px;">Auto-generation uses Early, Mid, and Late shifts with backtracking solver. Coverage: 1-2 staff (max 3 during 08:00-16:30). Each person works exactly 37.5 hours. Uses seeded RNG for reproducibility.</p>
         <h3>Shift Templates (click to select, then click cells)</h3>
         <div class="shift-templates">
             <button class="shift-btn" data-shift="early">Early (08:00-16:30)</button>
             <button class="shift-btn" data-shift="mid">Mid (10:00-18:30)</button>
             <button class="shift-btn" data-shift="late">Late (12:00-20:30)</button>
             <button class="shift-btn" data-shift="long">Long (08:00-20:30)</button>
-            <button class="shift-btn" data-shift="split">Split (08:00-13:00 & 16:00-20:30)</button>
+            <button class="shift-btn" data-shift="floating">Floating (Flexible 7.5hrs)</button>
             <button class="shift-btn off" data-shift="off">Day Off</button>
         </div>
         <p style="margin: 10px 0 0; color: var(--text-muted); font-size: 13px;">All shifts include 1 hour lunch break. Times shown are working hours.</p>
@@ -619,17 +636,23 @@
     <div class="coverage-detail">
         <h4>Hourly Coverage Graph</h4>
         <div class="graph-legend" style="display: flex; gap: 15px; margin-bottom: 15px; font-size: 12px; flex-wrap: wrap;">
-            <span><span style="display: inline-block; width: 12px; height: 12px; background: #27ae60; border-radius: 2px; margin-right: 5px;"></span>1-2 staff</span>
-            <span><span style="display: inline-block; width: 12px; height: 12px; background: #3498db; border-radius: 2px; margin-right: 5px;"></span>3 staff (changeover 12:00-16:30)</span>
+            <span><span style="display: inline-block; width: 12px; height: 12px; background: #27ae60; border-radius: 2px; margin-right: 5px;"></span>1-2 staff (ideal)</span>
+            <span><span style="display: inline-block; width: 12px; height: 12px; background: #3498db; border-radius: 2px; margin-right: 5px;"></span>3 staff (weekday 08:00-16:30 only)</span>
             <span><span style="display: inline-block; width: 12px; height: 12px; background: #e74c3c; border-radius: 2px; margin-right: 5px;"></span>No coverage</span>
-            <span><span style="display: inline-block; width: 12px; height: 12px; background: #e67e22; border-radius: 2px; margin-right: 5px;"></span>4+ staff (over)</span>
+            <span><span style="display: inline-block; width: 12px; height: 12px; background: #e67e22; border-radius: 2px; margin-right: 5px;"></span>Over staffed</span>
         </div>
         <div id="coverageGraph" style="display: flex; gap: 10px; flex-wrap: nowrap;">
         </div>
     </div>
     
     <div class="weekend-stats" style="margin-top: 20px; padding: 15px; background: var(--card-bg); border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
-        <h4 style="margin-top: 0;">Weekend Balance (Rolling 10 Weeks)</h4>
+        <h4 style="margin-top: 0;">Weekend Shifts - Last 10 Weeks</h4>
+        <p style="margin: 0 0 15px; font-size: 13px; color: var(--text-muted);">
+            Total weekend shifts worked per person.
+            <span style="color: #27ae60;">●</span> Balanced &nbsp;
+            <span style="color: #e74c3c;">●</span> Above average (give more weekends off) &nbsp;
+            <span style="color: #3498db;">●</span> Below average (available for more weekends)
+        </p>
         <div id="weekendStatsContainer" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px;">
         </div>
     </div>
@@ -646,6 +669,94 @@
     <div class="print-footer" style="display: none; justify-content: space-between;">
         <span id="printDate"></span>
         <span>Copyright 2026 Video Walrus Ltd - videowalrus.com</span>
+    </div>
+
+    <!-- Import/Export Modal -->
+    <div id="importExportModal" style="display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); z-index: 9999; align-items: center; justify-content: center;">
+        <div style="background: var(--card-bg); padding: 25px; border-radius: 10px; max-width: 600px; width: 90%; max-height: 80vh; overflow-y: auto; box-shadow: 0 4px 20px rgba(0,0,0,0.3);">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                <h2 style="margin: 0; color: var(--text-color);">Import / Export Data</h2>
+                <button onclick="closeImportExportModal()" style="background: none; border: none; font-size: 24px; cursor: pointer; color: var(--text-muted);">&times;</button>
+            </div>
+
+            <div style="margin-bottom: 25px;">
+                <h3 style="color: var(--text-color); margin-bottom: 10px;">Export Data</h3>
+                <p style="color: var(--text-muted); font-size: 13px; margin-bottom: 15px;">Download all rota data including staff names, shifts for all weeks, and day-off patterns.</p>
+                <button onclick="exportToCSV()" class="action-btn primary" style="width: 100%;">Download CSV</button>
+            </div>
+
+            <hr style="border: none; border-top: 1px solid var(--border-color); margin: 20px 0;">
+
+            <div>
+                <h3 style="color: var(--text-color); margin-bottom: 10px;">Import Data</h3>
+                <p style="color: var(--text-muted); font-size: 13px; margin-bottom: 15px;">Upload a CSV file to import rota data. This will replace all existing data.</p>
+                <input type="file" id="csvFileInput" accept=".csv" style="display: none;" onchange="handleFileSelect(event)">
+                <button onclick="document.getElementById('csvFileInput').click()" class="action-btn secondary" style="width: 100%; margin-bottom: 10px;">Select CSV File</button>
+                <div id="importPreview" style="display: none; margin-top: 15px;">
+                    <p style="color: var(--text-color); font-weight: bold; margin-bottom: 10px;">Preview:</p>
+                    <div id="importPreviewContent" style="background: var(--staff-row-bg); padding: 10px; border-radius: 5px; font-size: 12px; max-height: 150px; overflow-y: auto; color: var(--text-color);"></div>
+                    <button onclick="confirmImport()" class="action-btn primary" style="width: 100%; margin-top: 10px;">Confirm Import</button>
+                </div>
+            </div>
+
+            <hr style="border: none; border-top: 1px solid var(--border-color); margin: 20px 0;">
+
+            <div>
+                <h3 style="color: var(--text-color); margin-bottom: 10px;">CSV Format</h3>
+                <p style="color: var(--text-muted); font-size: 12px; line-height: 1.6;">
+                    The CSV contains rows for each staff member per week:<br>
+                    <code style="background: var(--staff-row-bg); padding: 2px 5px; border-radius: 3px;">week_start,staff_id,staff_name,mon,tue,wed,thu,fri,sat,sun</code><br><br>
+                    Shift values: <code>early</code>, <code>mid</code>, <code>late</code>, <code>long</code>, <code>floating</code>, <code>off</code>, or empty
+                </p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Staff Preferences Modal -->
+    <div id="preferencesModal" style="display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); z-index: 9999; align-items: center; justify-content: center;">
+        <div style="background: var(--card-bg); padding: 25px; border-radius: 10px; max-width: 550px; width: 90%; max-height: 85vh; overflow-y: auto; box-shadow: 0 4px 20px rgba(0,0,0,0.3);">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                <h2 style="margin: 0; color: var(--text-color);">Staff Preferences</h2>
+                <button onclick="closePreferencesModal()" style="background: none; border: none; font-size: 24px; cursor: pointer; color: var(--text-muted);">&times;</button>
+            </div>
+
+            <div style="margin-bottom: 20px;">
+                <label style="display: block; margin-bottom: 8px; color: var(--text-color); font-weight: bold;">Select Staff Member:</label>
+                <select id="prefStaffSelect" onchange="loadStaffPreference()" style="width: 100%; padding: 10px; border-radius: 5px; border: 1px solid var(--border-color); background: var(--input-bg); color: var(--text-color); font-size: 14px;"></select>
+            </div>
+
+            <div style="margin-bottom: 20px;">
+                <label style="display: block; margin-bottom: 8px; color: var(--text-color); font-weight: bold;">Preferred Days Off:</label>
+                <p style="margin: 0 0 10px; font-size: 12px; color: var(--text-muted);">Soft preference - algorithm will try to give these days off when possible</p>
+                <div id="prefDaysOff" style="display: flex; flex-wrap: wrap; gap: 10px;"></div>
+            </div>
+
+            <div style="margin-bottom: 20px;">
+                <label style="display: block; margin-bottom: 8px; color: var(--text-color); font-weight: bold;">Shift Preferences:</label>
+                <p style="margin: 0 0 10px; font-size: 12px; color: var(--text-muted);">1 = Avoid, 3 = Neutral, 5 = Prefer</p>
+                <div id="prefShiftRatings"></div>
+            </div>
+
+            <div style="margin-bottom: 20px;">
+                <label style="display: block; margin-bottom: 8px; color: var(--text-color); font-weight: bold;">Unavailable Dates:</label>
+                <p style="margin: 0 0 10px; font-size: 12px; color: var(--text-muted);">Hard constraint - will not be scheduled on these dates</p>
+                <div style="display: flex; gap: 10px; margin-bottom: 10px;">
+                    <input type="date" id="prefUnavailableDate" style="flex: 1; padding: 8px; border-radius: 5px; border: 1px solid var(--border-color); background: var(--input-bg); color: var(--text-color);">
+                    <button onclick="addUnavailableDate()" style="padding: 8px 15px; background: #3498db; color: white; border: none; border-radius: 5px; cursor: pointer;">Add</button>
+                </div>
+                <ul id="prefUnavailableDatesList" style="list-style: none; padding: 0; margin: 0; max-height: 100px; overflow-y: auto;"></ul>
+            </div>
+
+            <div style="margin-bottom: 20px;">
+                <label style="display: block; margin-bottom: 8px; color: var(--text-color); font-weight: bold;">Notes:</label>
+                <textarea id="prefNotes" rows="2" placeholder="Any additional notes..." style="width: 100%; padding: 10px; border-radius: 5px; border: 1px solid var(--border-color); background: var(--input-bg); color: var(--text-color); resize: vertical; font-family: inherit;"></textarea>
+            </div>
+
+            <div style="display: flex; gap: 10px;">
+                <button onclick="saveCurrentPreference()" style="flex: 1; padding: 12px; background: #27ae60; color: white; border: none; border-radius: 5px; cursor: pointer; font-size: 14px;">Save Preferences</button>
+                <button onclick="closePreferencesModal()" style="flex: 1; padding: 12px; background: #95a5a6; color: white; border: none; border-radius: 5px; cursor: pointer; font-size: 14px;">Cancel</button>
+            </div>
+        </div>
     </div>
 
     <script>
@@ -691,13 +802,14 @@
                 end: 20.5,
                 coverage: [[8, 20.5]]
             },
-            split: { 
-                name: 'Split', 
-                time: '08:00-13:00 & 16:00-20:30', 
-                hours: 9.5,  // 5 + 4.5
-                start: 8, 
-                end: 20.5,
-                coverage: [[8, 13], [16, 20.5]]  // gap 13:00-16:00
+            floating: {
+                name: 'Floating',
+                time: '08:30-17:00',
+                hours: 7.5,
+                start: 8.5,
+                end: 17,
+                coverage: [[8.5, 17]],  // Flexible coverage - doesn't count towards coverage limits
+                isFlexible: true  // Flag for special handling
             },
             off: { 
                 name: 'OFF', 
@@ -719,36 +831,635 @@
         let selectedShift = null;
         let currentWeekStart = getNextMonday();
         let dayOffPatterns = {}; // Persistent day off patterns: { staffId: ['mon', 'tue', ...] }
-        
-        // 10-week weekend tracking
+        let staffPreferences = {}; // Staff preferences: { staffId: { preferredDaysOff, shiftPreferences, unavailableDates, notes } }
+        let rng = null; // Seeded random number generator instance
+
+        // Coverage weights for prioritising certain days/times (default: weekends slightly higher)
+        const coverageWeights = {
+            days: { mon: 1.0, tue: 1.0, wed: 1.0, thu: 1.0, fri: 1.0, sat: 1.2, sun: 1.2 },
+            peakHours: { start: 12, end: 14, weight: 1.3 }  // Lunch rush
+        };
+
+        // Seeded PRNG using Mulberry32 algorithm for reproducible results
+        class SeededRandom {
+            constructor(seed) {
+                this.seed = seed;
+            }
+
+            next() {
+                let t = this.seed += 0x6D2B79F5;
+                t = Math.imul(t ^ t >>> 15, t | 1);
+                t ^= t + Math.imul(t ^ t >>> 7, t | 61);
+                return ((t ^ t >>> 14) >>> 0) / 4294967296;
+            }
+
+            // Fisher-Yates shuffle
+            shuffle(array) {
+                const result = [...array];
+                for (let i = result.length - 1; i > 0; i--) {
+                    const j = Math.floor(this.next() * (i + 1));
+                    [result[i], result[j]] = [result[j], result[i]];
+                }
+                return result;
+            }
+
+            // Random number in range [0, max)
+            range(max) {
+                return this.next() * max;
+            }
+        }
+
+        // Generate seed from week start date for reproducibility
+        function getWeekSeed(weekStart) {
+            return weekStart.getFullYear() * 10000 +
+                   (weekStart.getMonth() + 1) * 100 +
+                   weekStart.getDate();
+        }
+
+        // Shift end/start times for turnaround calculations
+        const SHIFT_END_TIMES = { early: 16.5, mid: 18.5, late: 20.5, long: 20.5, floating: 17 };
+        const SHIFT_START_TIMES = { early: 8, mid: 10, late: 12, long: 8, floating: 8.5 };
+        const MIN_REST_HOURS = 12; // Minimum 12 hours between shifts
+
+        // Staff preferences functions
+        function loadStaffPreferences() {
+            const saved = localStorage.getItem('staffRota_preferences');
+            if (saved) {
+                try {
+                    staffPreferences = JSON.parse(saved);
+                } catch (e) {
+                    staffPreferences = {};
+                }
+            }
+        }
+
+        function saveStaffPreferences() {
+            localStorage.setItem('staffRota_preferences', JSON.stringify(staffPreferences));
+        }
+
+        function getDefaultPreferences() {
+            return {
+                preferredDaysOff: [],
+                shiftPreferences: { early: 3, mid: 3, late: 3, long: 3, floating: 3 },
+                unavailableDates: [],
+                maxConsecutive: 5,
+                notes: ''
+            };
+        }
+
+        // Cross-week transition functions
+        function getPreviousWeekSundayShift(staffId) {
+            const prevWeek = new Date(currentWeekStart);
+            prevWeek.setDate(prevWeek.getDate() - 7);
+            const weekKey = getWeekKey(prevWeek);
+            const saved = localStorage.getItem('staffRota_' + weekKey);
+
+            if (saved) {
+                try {
+                    const data = JSON.parse(saved);
+                    return data.rota[staffId]?.sun || null;
+                } catch (e) {
+                    return null;
+                }
+            }
+            return null;
+        }
+
+        function getNextWeekMondayShift(staffId) {
+            const nextWeek = new Date(currentWeekStart);
+            nextWeek.setDate(nextWeek.getDate() + 7);
+            const weekKey = getWeekKey(nextWeek);
+            const saved = localStorage.getItem('staffRota_' + weekKey);
+
+            if (saved) {
+                try {
+                    const data = JSON.parse(saved);
+                    return data.rota[staffId]?.mon || null;
+                } catch (e) {
+                    return null;
+                }
+            }
+            return null;
+        }
+
+        function hasShortTurnaround(prevShift, nextShift) {
+            if (!prevShift || prevShift === 'off' || !nextShift || nextShift === 'off') {
+                return false;
+            }
+            const endTime = SHIFT_END_TIMES[prevShift];
+            const startTime = SHIFT_START_TIMES[nextShift];
+            if (endTime === undefined || startTime === undefined) return false;
+
+            // Hours between end of prev shift and start of next (crossing midnight)
+            const restHours = (24 - endTime) + startTime;
+            return restHours < MIN_REST_HOURS;
+        }
+
+        function getDateForDay(weekStart, day) {
+            const dayIndex = DAYS.indexOf(day);
+            const date = new Date(weekStart);
+            date.setDate(date.getDate() + dayIndex);
+            return date.toISOString().split('T')[0];
+        }
+
+        // Shift variety tracking
+        function calculateShiftVariety(staffId, assignments) {
+            const shiftCounts = { early: 0, mid: 0, late: 0, long: 0, floating: 0 };
+            const staffAssignments = assignments[staffId] || rota[staffId] || {};
+
+            DAYS.forEach(day => {
+                const shift = staffAssignments[day];
+                if (shift && shift !== 'off' && shiftCounts[shift] !== undefined) {
+                    shiftCounts[shift]++;
+                }
+            });
+
+            return shiftCounts;
+        }
+
+        // RotaState class for backtracking solver
+        class RotaState {
+            constructor() {
+                this.assignments = {};  // staffId -> { day: shift }
+                this.staffHours = {};   // staffId -> hours
+                this.history = [];      // Stack of assignments for backtracking
+            }
+
+            clone() {
+                const copy = new RotaState();
+                copy.assignments = JSON.parse(JSON.stringify(this.assignments));
+                copy.staffHours = { ...this.staffHours };
+                // Don't clone history - fresh for new branch
+                return copy;
+            }
+
+            initialize(staffList, existingRota, patterns) {
+                staffList.forEach(s => {
+                    this.assignments[s.id] = {};
+                    this.staffHours[s.id] = 0;
+
+                    // Apply day off patterns
+                    if (patterns[s.id]) {
+                        patterns[s.id].forEach(day => {
+                            this.assignments[s.id][day] = 'off';
+                        });
+                    }
+
+                    // Note: We do NOT copy existing 'off' assignments from rota
+                    // Days off are planned fresh each generation by planConsecutiveDaysOffWithState
+                    // Only dayOffPatterns (manual user patterns) are preserved above
+                });
+            }
+
+            assign(staffId, day, shift) {
+                this.history.push({
+                    staffId,
+                    day,
+                    previousShift: this.assignments[staffId]?.[day] || null,
+                    previousHours: this.staffHours[staffId] || 0
+                });
+
+                if (!this.assignments[staffId]) {
+                    this.assignments[staffId] = {};
+                }
+                this.assignments[staffId][day] = shift;
+
+                if (shift !== 'off' && SHIFTS[shift]) {
+                    this.staffHours[staffId] = (this.staffHours[staffId] || 0) + SHIFTS[shift].hours;
+                }
+            }
+
+            unassign() {
+                if (this.history.length === 0) return false;
+
+                const last = this.history.pop();
+                const currentShift = this.assignments[last.staffId][last.day];
+
+                if (last.previousShift === null) {
+                    delete this.assignments[last.staffId][last.day];
+                } else {
+                    this.assignments[last.staffId][last.day] = last.previousShift;
+                }
+                this.staffHours[last.staffId] = last.previousHours;
+
+                return true;
+            }
+
+            getAssignment(staffId, day) {
+                return this.assignments[staffId]?.[day] || null;
+            }
+
+            getHours(staffId) {
+                return this.staffHours[staffId] || 0;
+            }
+
+            toRota() {
+                // Convert state back to rota format
+                const result = {};
+                Object.keys(this.assignments).forEach(staffId => {
+                    result[staffId] = { ...this.assignments[staffId] };
+                });
+                return result;
+            }
+        }
+
+        // Backtracking solver helper functions
+        function getValidShiftsForSlot(staffId, day, state, weekendStats, availableShifts = ['early', 'mid', 'late']) {
+            const valid = [];
+
+            for (const shift of availableShifts) {
+                if (isValidAssignment(staffId, day, shift, state)) {
+                    valid.push(shift);
+                }
+            }
+
+            return valid;
+        }
+
+        function isValidAssignment(staffId, day, shift, state) {
+            // Hard constraints - must all pass
+
+            // 1. Staff has day off pattern for this day
+            if (state.getAssignment(staffId, day) === 'off') return false;
+
+            // 2. Staff has unavailable date
+            const dateStr = getDateForDay(currentWeekStart, day);
+            if (staffPreferences[staffId]?.unavailableDates?.includes(dateStr)) return false;
+
+            // 3. No floating shifts on weekends
+            if (shift === 'floating' && (day === 'sat' || day === 'sun')) return false;
+
+            // 4. Won't exceed target hours
+            const currentHours = state.getHours(staffId);
+            if (currentHours + SHIFTS[shift].hours > TARGET_HOURS) return false;
+
+            // 4. Won't exceed max coverage (floating shifts don't count - they're flexible)
+            if (shift !== 'floating' && wouldExceedMaxCoverageState(day, shift, state, 2)) return false;
+
+            // 5. Won't exceed 5 consecutive work days
+            if (wouldExceedConsecutiveState(staffId, day, state, 5)) return false;
+
+            // 6. Minimum 12-hour rest between shifts (intra-week)
+            // Floating at 8:30am always satisfies 12hr rest after any shift (latest end 20:30 + 12 = 8:30)
+            if (shift !== 'floating' && wouldViolateMinRestState(staffId, day, shift, state)) return false;
+
+            // 7. Cross-week turnaround check (Monday)
+            // Floating at 8:30am always satisfies this too
+            if (shift !== 'floating' && day === 'mon') {
+                const prevSunday = getPreviousWeekSundayShift(staffId);
+                if (hasShortTurnaround(prevSunday, shift)) return false;
+            }
+
+            return true;
+        }
+
+        // Check if assigning this shift would violate minimum 12-hour rest
+        function wouldViolateMinRestState(staffId, day, shift, state) {
+            const dayIndex = DAYS.indexOf(day);
+
+            // Check previous day's shift
+            if (dayIndex > 0) {
+                const prevDay = DAYS[dayIndex - 1];
+                const prevShift = state.getAssignment(staffId, prevDay);
+                if (prevShift && prevShift !== 'off') {
+                    if (hasShortTurnaround(prevShift, shift)) return true;
+                }
+            }
+
+            // Check next day's shift
+            if (dayIndex < DAYS.length - 1) {
+                const nextDay = DAYS[dayIndex + 1];
+                const nextShift = state.getAssignment(staffId, nextDay);
+                if (nextShift && nextShift !== 'off') {
+                    if (hasShortTurnaround(shift, nextShift)) return true;
+                }
+            }
+
+            return false;
+        }
+
+        function wouldExceedMaxCoverageState(day, newShift, state, maxStaff) {
+            const MORNING_START = 8;
+            const MORNING_END = 12;
+            const CHANGEOVER_START = 12;
+            const CHANGEOVER_END = 16.5;
+            const newCoverage = SHIFTS[newShift].coverage;
+
+            for (const [start, end] of newCoverage) {
+                for (let t = start; t < end; t += 0.5) {
+                    let count = 0;
+                    staff.forEach(s => {
+                        const existingShift = state.getAssignment(s.id, day);
+                        // Floating shifts don't count towards coverage
+                        if (existingShift && existingShift !== 'off' && existingShift !== 'floating' && SHIFTS[existingShift]) {
+                            const coverage = SHIFTS[existingShift].coverage;
+                            for (const [cs, ce] of coverage) {
+                                if (t >= cs && t < ce) {
+                                    count++;
+                                    break;
+                                }
+                            }
+                        }
+                    });
+
+                    // Allow up to 3 staff during morning (08:00-12:00) and changeover (12:00-16:30) on WEEKDAYS only
+                    // Weekends (sat/sun) always max 2 staff
+                    const isWeekend = (day === 'sat' || day === 'sun');
+                    const isMorning = (t >= MORNING_START && t < MORNING_END);
+                    const isChangeover = (t >= CHANGEOVER_START && t < CHANGEOVER_END);
+                    const effectiveMax = (!isWeekend && (isMorning || isChangeover)) ? 3 : maxStaff;
+
+                    if (count >= effectiveMax) {
+                        return true;
+                    }
+                }
+            }
+            return false;
+        }
+
+        function wouldExceedConsecutiveState(staffId, day, state, maxConsecutive) {
+            const dayIndex = DAYS.indexOf(day);
+
+            // Count consecutive working days before
+            let consecutiveBefore = 0;
+            for (let i = dayIndex - 1; i >= 0; i--) {
+                const shift = state.getAssignment(staffId, DAYS[i]);
+                if (shift && shift !== 'off') {
+                    consecutiveBefore++;
+                } else {
+                    break;
+                }
+            }
+
+            // Count consecutive working days after
+            let consecutiveAfter = 0;
+            for (let i = dayIndex + 1; i < DAYS.length; i++) {
+                const shift = state.getAssignment(staffId, DAYS[i]);
+                if (shift && shift !== 'off') {
+                    consecutiveAfter++;
+                } else {
+                    break;
+                }
+            }
+
+            return (consecutiveBefore + 1 + consecutiveAfter) > maxConsecutive;
+        }
+
+        function scoreAssignmentForSolver(staffId, day, shift, state, weekendStats) {
+            let score = 100; // Base score
+
+            // Hours remaining (more remaining = higher priority)
+            const hoursRemaining = TARGET_HOURS - state.getHours(staffId);
+            score += hoursRemaining * 2;
+
+            // Shift variety scoring
+            const shiftCounts = calculateShiftVariety(staffId, state.assignments);
+            const thisShiftCount = shiftCounts[shift] || 0;
+            const totalShifts = Object.values(shiftCounts).reduce((a, b) => a + b, 0);
+
+            if (totalShifts > 0) {
+                const idealCount = totalShifts / 3;
+                const deviation = thisShiftCount - idealCount;
+                if (deviation > 0) {
+                    score -= deviation * 5;
+                }
+            }
+
+            // Weekend balance using 10-week stats
+            if (day === 'sat' || day === 'sun') {
+                const avg10Week = calculateAvgWeekendShifts(weekendStats);
+                const staffWeekendTotal = weekendStats[staffId]?.total || 0;
+
+                if (staffWeekendTotal < avg10Week - 1) {
+                    score += 15;
+                } else if (staffWeekendTotal > avg10Week + 1) {
+                    score -= 10;
+                }
+            }
+
+            // Staff preferences
+            const prefs = staffPreferences[staffId];
+            if (prefs) {
+                if (prefs.preferredDaysOff?.includes(day)) {
+                    score -= 8;
+                }
+                const shiftPref = prefs.shiftPreferences?.[shift];
+                if (shiftPref) {
+                    score += (shiftPref - 3) * 3;
+                }
+            }
+
+            // Cross-week Sunday late penalty
+            if (day === 'sun' && shift === 'late') {
+                const nextMonday = getNextWeekMondayShift(staffId);
+                if (nextMonday === 'early') {
+                    score -= 25;
+                }
+            }
+
+            // Floating shift penalty - prefer standard shifts
+            if (shift === 'floating') {
+                score -= 20; // Floating is a last resort
+            }
+
+            // Small random factor for variety
+            if (rng) {
+                score += rng.range(3);
+            }
+
+            return score;
+        }
+
+        function calculateAvgWeekendShifts(weekendStats) {
+            let total = 0;
+            let count = 0;
+            Object.values(weekendStats).forEach(stat => {
+                total += stat.total || 0;
+                count++;
+            });
+            return count > 0 ? total / count : 0;
+        }
+
+        // Main backtracking solver
+        function solveWithBacktracking(state, weekendStats, maxBacktracks = 1000) {
+            let backtracks = 0;
+            const standardShifts = ['early', 'mid', 'late'];
+            const allShifts = ['early', 'mid', 'late', 'floating']; // Floating used to fill remaining hours
+
+            function getUnassignedSlots() {
+                const unassigned = [];
+                staff.forEach(s => {
+                    if (state.getHours(s.id) < TARGET_HOURS) {
+                        DAYS.forEach(day => {
+                            const current = state.getAssignment(s.id, day);
+                            if (!current) {
+                                unassigned.push({ staffId: s.id, day });
+                            }
+                        });
+                    }
+                });
+                return unassigned;
+            }
+
+            // MRV heuristic - select variable with fewest valid options
+            function selectVariable(unassigned) {
+                return unassigned.sort((a, b) => {
+                    // Consider all shifts for MRV calculation
+                    const optionsA = getValidShiftsForSlot(a.staffId, a.day, state, weekendStats, allShifts).length;
+                    const optionsB = getValidShiftsForSlot(b.staffId, b.day, state, weekendStats, allShifts).length;
+                    return optionsA - optionsB;
+                })[0];
+            }
+
+            // Order values by score (highest first)
+            function orderValues(staffId, day, shifts) {
+                return shifts.sort((a, b) => {
+                    const scoreA = scoreAssignmentForSolver(staffId, day, a, state, weekendStats);
+                    const scoreB = scoreAssignmentForSolver(staffId, day, b, state, weekendStats);
+                    return scoreB - scoreA;
+                });
+            }
+
+            // Forward checking - can remaining slots still be filled?
+            function canComplete() {
+                for (const s of staff) {
+                    const hoursNeeded = TARGET_HOURS - state.getHours(s.id);
+                    if (hoursNeeded <= 0) continue;
+
+                    const daysRemaining = DAYS.filter(d => !state.getAssignment(s.id, d)).length;
+                    if (daysRemaining * 7.5 < hoursNeeded) {
+                        return false;
+                    }
+                }
+                return true;
+            }
+
+            function backtrack() {
+                const unassigned = getUnassignedSlots();
+
+                // Base case: all staff have target hours or no unassigned slots
+                if (unassigned.length === 0) {
+                    return true;
+                }
+
+                // Check if completion is still possible
+                if (!canComplete()) {
+                    return false;
+                }
+
+                const variable = selectVariable(unassigned);
+                if (!variable) return true;
+
+                // Try standard shifts first, then floating as last resort
+                const validStandardShifts = getValidShiftsForSlot(variable.staffId, variable.day, state, weekendStats, standardShifts);
+                const validFloating = isValidAssignment(variable.staffId, variable.day, 'floating', state) ? ['floating'] : [];
+
+                // Combine: standard shifts first, floating last
+                const validShifts = [...validStandardShifts, ...validFloating];
+
+                if (validShifts.length === 0) {
+                    // Can also mark as day off if staff already has enough hours
+                    if (state.getHours(variable.staffId) >= TARGET_HOURS) {
+                        state.assign(variable.staffId, variable.day, 'off');
+                        if (backtrack()) return true;
+                        state.unassign();
+                    }
+                    return false;
+                }
+
+                // Order standard shifts by score, but keep floating at the end
+                const orderedStandard = orderValues(variable.staffId, variable.day, validStandardShifts);
+                const orderedShifts = [...orderedStandard, ...validFloating];
+
+                for (const shift of orderedShifts) {
+                    state.assign(variable.staffId, variable.day, shift);
+
+                    if (backtrack()) {
+                        return true;
+                    }
+
+                    state.unassign();
+                    backtracks++;
+
+                    if (backtracks > maxBacktracks) {
+                        console.warn('Max backtracks reached:', backtracks);
+                        return false;
+                    }
+                }
+
+                // Try marking as day off if staff has enough hours
+                if (state.getHours(variable.staffId) >= TARGET_HOURS) {
+                    state.assign(variable.staffId, variable.day, 'off');
+                    if (backtrack()) return true;
+                    state.unassign();
+                }
+
+                return false;
+            }
+
+            const success = backtrack();
+            console.log('Backtracking completed. Success:', success, 'Backtracks:', backtracks);
+            return success;
+        }
+
+        // 10-week weekend tracking with enhanced golden weekend support
         function getWeekendStatsForPeriod(weeksBack = 10) {
             // Get weekend shift counts for each staff over rolling 10-week window
             const stats = {};
             staff.forEach(s => {
-                stats[s.id] = { sat: 0, sun: 0, total: 0, daysOff: 0, weeks: [] };
+                stats[s.id] = {
+                    sat: 0,
+                    sun: 0,
+                    total: 0,
+                    daysOff: 0,
+                    fullWeekendsOff: 0,      // Both Sat+Sun off
+                    satOnlyOff: 0,            // Sat off, Sun worked
+                    sunOnlyOff: 0,            // Sun off, Sat worked
+                    fullWeekendsWorked: 0,    // Both Sat+Sun worked
+                    weeksSinceFullWeekendOff: Infinity,
+                    weeks: []
+                };
             });
-            
+
             // Go back 'weeksBack' weeks from current week
             for (let w = 0; w < weeksBack; w++) {
                 const weekDate = new Date(currentWeekStart);
                 weekDate.setDate(weekDate.getDate() - (w * 7));
                 const weekKey = getWeekKey(weekDate);
                 const saved = localStorage.getItem('staffRota_' + weekKey);
-                
+
                 if (saved) {
                     try {
                         const data = JSON.parse(saved);
                         staff.forEach(s => {
                             const staffRota = data.rota[s.id];
                             if (staffRota) {
-                                if (staffRota.sat && staffRota.sat !== 'off') {
+                                const satWorked = staffRota.sat && staffRota.sat !== 'off';
+                                const sunWorked = staffRota.sun && staffRota.sun !== 'off';
+
+                                if (satWorked) {
                                     stats[s.id].sat++;
                                     stats[s.id].total++;
                                 }
-                                if (staffRota.sun && staffRota.sun !== 'off') {
+                                if (sunWorked) {
                                     stats[s.id].sun++;
                                     stats[s.id].total++;
                                 }
+
+                                // Track weekend patterns
+                                if (!satWorked && !sunWorked) {
+                                    stats[s.id].fullWeekendsOff++;
+                                    if (stats[s.id].weeksSinceFullWeekendOff === Infinity) {
+                                        stats[s.id].weeksSinceFullWeekendOff = w;
+                                    }
+                                } else if (!satWorked && sunWorked) {
+                                    stats[s.id].satOnlyOff++;
+                                } else if (satWorked && !sunWorked) {
+                                    stats[s.id].sunOnlyOff++;
+                                } else {
+                                    stats[s.id].fullWeekendsWorked++;
+                                }
+
                                 // Count total days off
                                 DAYS.forEach(day => {
                                     if (staffRota[day] === 'off') {
@@ -761,8 +1472,28 @@
                     } catch (e) {}
                 }
             }
-            
+
             return stats;
+        }
+
+        // Select who should get the "golden" full weekend off (Sat+Sun together)
+        function selectGoldenWeekendRecipient(weekendStats) {
+            const candidates = staff.map(s => ({
+                id: s.id,
+                weeksSince: weekendStats[s.id]?.weeksSinceFullWeekendOff || Infinity,
+                fullWeekendsOff: weekendStats[s.id]?.fullWeekendsOff || 0,
+                totalWeekendShifts: weekendStats[s.id]?.total || 0
+            }));
+
+            // Sort by: longest since full weekend off, then by most weekend shifts worked
+            candidates.sort((a, b) => {
+                if (a.weeksSince !== b.weeksSince) {
+                    return b.weeksSince - a.weeksSince;  // Longest wait first
+                }
+                return b.totalWeekendShifts - a.totalWeekendShifts;  // Most worked first
+            });
+
+            return candidates[0]?.id || null;
         }
         
         function getAverageWeekendShifts10Week() {
@@ -814,31 +1545,33 @@
                 const stat = stats[s.id];
                 const div = document.createElement('div');
                 div.style.cssText = 'background: var(--staff-row-bg); padding: 10px; border-radius: 5px; text-align: center;';
-                
-                let statusColor = '#27ae60'; // good
+
+                let statusColor = '#27ae60';
+                let statusText = 'Balanced';
                 if (stat.total > avgTotal + 2) {
-                    statusColor = '#e74c3c'; // too many
+                    statusColor = '#e74c3c';
+                    statusText = 'Above avg';
                 } else if (stat.total < avgTotal - 2) {
-                    statusColor = '#3498db'; // too few, prioritise
+                    statusColor = '#3498db';
+                    statusText = 'Below avg';
                 }
-                
+
                 div.innerHTML = `
                     <div style="font-weight: bold; margin-bottom: 5px;">${s.name}</div>
                     <div style="font-size: 24px; color: ${statusColor}; font-weight: bold;">${stat.total}</div>
+                    <div style="font-size: 10px; color: ${statusColor}; margin-bottom: 4px;">${statusText}</div>
                     <div style="font-size: 11px; color: var(--text-muted);">Sat: ${stat.sat} | Sun: ${stat.sun}</div>
-                    <div style="font-size: 11px; color: var(--text-muted); margin-top: 4px;">Days off: ${stat.daysOff}</div>
                 `;
                 container.appendChild(div);
             });
-            
+
             // Add average indicator
             const avgDiv = document.createElement('div');
             avgDiv.style.cssText = 'background: var(--header-bg); color: #fff; padding: 10px; border-radius: 5px; text-align: center;';
             avgDiv.innerHTML = `
-                <div style="font-weight: bold; margin-bottom: 5px;">Average</div>
+                <div style="font-weight: bold; margin-bottom: 5px;">Team Average</div>
                 <div style="font-size: 24px; font-weight: bold;">${avgTotal.toFixed(1)}</div>
                 <div style="font-size: 11px; opacity: 0.8;">weekend shifts</div>
-                <div style="font-size: 11px; opacity: 0.8; margin-top: 4px;">Days off: ${avgDaysOff.toFixed(1)}</div>
             `;
             container.appendChild(avgDiv);
         }
@@ -852,7 +1585,17 @@
             nextMonday.setHours(0, 0, 0, 0);
             return nextMonday;
         }
-        
+
+        // Get the Monday of the week containing the given date
+        function getMonday(date) {
+            const d = new Date(date);
+            const dayOfWeek = d.getDay();
+            const diff = dayOfWeek === 0 ? -6 : 1 - dayOfWeek; // Sunday is 0, Monday is 1
+            d.setDate(d.getDate() + diff);
+            d.setHours(0, 0, 0, 0);
+            return d;
+        }
+
         function getWeekKey(date) {
             return date.toISOString().split('T')[0];
         }
@@ -884,24 +1627,24 @@
         function loadWeekData() {
             const weekKey = getWeekKey(currentWeekStart);
             const saved = localStorage.getItem('staffRota_' + weekKey);
-            
-            if (saved) {
-                try {
-                    const data = JSON.parse(saved);
-                    staff = data.staff;
-                    rota = data.rota;
-                    return;
-                } catch (e) {}
-            }
-            
-            // Load staff names from any existing week, but clear rota
+
+            // Always load staff names from global storage (persistent across weeks)
             const staffData = localStorage.getItem('staffRota_staff');
             if (staffData) {
                 try {
                     staff = JSON.parse(staffData);
                 } catch (e) {}
             }
-            
+
+            if (saved) {
+                try {
+                    const data = JSON.parse(saved);
+                    // Only load rota data, staff names come from global storage
+                    rota = data.rota;
+                    return;
+                } catch (e) {}
+            }
+
             // Initialize empty rota for this week
             rota = {};
             staff.forEach(s => {
@@ -910,7 +1653,7 @@
                     rota[s.id][day] = null;
                 });
             });
-            
+
             // Apply persistent day off patterns to new week
             applyDayOffPatterns();
         }
@@ -923,13 +1666,16 @@
                     staff = JSON.parse(staffData);
                 } catch (e) {}
             }
-            
+
             // Load persistent day off patterns
             loadDayOffPatterns();
-            
+
+            // Load staff preferences
+            loadStaffPreferences();
+
             // Load current week's data
             loadWeekData();
-            
+
             updateWeekDisplay();
             renderTable();
             renderTimeGrid();
@@ -1157,22 +1903,28 @@
         function validateRota() {
             // Returns { valid: boolean, warnings: [], errors: [] }
             const result = { valid: true, warnings: [], errors: [] };
-            
-            // Changeover period where 3 staff is acceptable
+
+            // Periods where 3 staff is acceptable
+            const MORNING_START = 8;
+            const MORNING_END = 12;
             const CHANGEOVER_START = 12;
             const CHANGEOVER_END = 16.5;
-            
-            // Check each day has 1-2 staff coverage (1-3 during changeover)
+
+            // Check each day has 1-2 staff coverage (1-3 during morning/changeover on WEEKDAYS only)
+            // Weekends always max 2 staff
             DAYS.forEach(day => {
                 const dayName = day.charAt(0).toUpperCase() + day.slice(1);
+                const isWeekend = (day === 'sat' || day === 'sun');
                 let hasGap = false;
                 let hasOver = false;
-                
+
                 for (let t = OPEN_TIME; t < CLOSE_TIME; t += 0.5) {
                     const count = getStaffCountAtTime(day, t);
+                    const isMorning = (t >= MORNING_START && t < MORNING_END);
                     const isChangeover = (t >= CHANGEOVER_START && t < CHANGEOVER_END);
-                    const maxAllowed = isChangeover ? 3 : 2;
-                    
+                    // Weekends: always max 2, Weekdays: 3 during morning/changeover
+                    const maxAllowed = (!isWeekend && (isMorning || isChangeover)) ? 3 : 2;
+
                     if (count === 0) {
                         hasGap = true;
                     }
@@ -1247,7 +1999,7 @@
             } else {
                 el.className = 'generation-result generation-success';
                 el.innerHTML = '<strong>Rota generated successfully!</strong><br>' +
-                    '• Full coverage: 1-2 staff (max 3 during 12:00-16:30 changeover)<br>' +
+                    '• Full coverage: 1-2 staff (max 3 during 08:00-16:30)<br>' +
                     '• All staff at target hours (37.5hrs)<br>' +
                     '• All staff have 2 consecutive days off<br>' +
                     '• Weekend shifts balanced (10-week rolling)';
@@ -1255,127 +2007,422 @@
         }
         
         function generateBestFitRota() {
-            // Available shifts: Early, Mid, Late (all 7.5 hours)
-            const availableShifts = ['early', 'mid', 'late'];
-            
-            // STEP 1: Clear existing shifts (EXCEPT Day Off from patterns)
+            console.log('Starting multi-pass rota generation...');
+
+            // Initialize seeded RNG for reproducibility
+            rng = new SeededRandom(getWeekSeed(currentWeekStart));
+
+            // Get 10-week weekend stats for balancing
+            const weekendStats10Week = getWeekendStatsForPeriod(10);
+
+            // PASS 1: Initialize state and plan consecutive days off
+            console.log('Pass 1: Planning days off and minimum coverage...');
+            const state = new RotaState();
+            state.initialize(staff, rota, dayOffPatterns);
+
+            // Plan consecutive days off with golden weekend consideration
+            planConsecutiveDaysOffWithState(state, weekendStats10Week);
+
+            // Assign minimum coverage: 1 Early + 1 Late per day
+            DAYS.forEach(day => {
+                assignMinimumCoverageForDay(state, day, weekendStats10Week);
+            });
+
+            // PASS 2: Fill remaining hours using backtracking solver
+            console.log('Pass 2: Filling remaining hours with backtracking...');
+            const solverSuccess = solveWithBacktracking(state, weekendStats10Week, 1000);
+
+            if (!solverSuccess) {
+                console.warn('Backtracking did not find complete solution, using greedy fallback...');
+                greedyFillRemaining(state, weekendStats10Week);
+            }
+
+            // PASS 3: Optimise fairness through swaps
+            console.log('Pass 3: Optimising fairness through swaps...');
+            optimiseWithSwaps(state, weekendStats10Week);
+
+            // PASS 4: Fill single-day gaps with floating shifts for staff short on hours
+            console.log('Pass 4: Filling gaps with floating shifts...');
+            fillGapsWithFloating(state);
+
+            // Apply state to rota
+            rota = state.toRota();
+
+            // Validate and show results
+            const result = validateRota();
+            showGenerationResult(result);
+
+            // Save and render
+            saveToLocalStorage();
+            renderTable();
+            renderWeekendStats();
+        }
+
+        // Plan consecutive days off using state object
+        function planConsecutiveDaysOffWithState(state, weekendStats) {
+            const consecutivePairs = [
+                ['tue', 'wed'],
+                ['wed', 'thu'],
+                ['mon', 'tue'],
+                ['thu', 'fri'],
+                ['sat', 'sun'],
+                ['fri', 'sat'],
+                ['sun', 'mon']
+            ];
+
+            const daysOffCount = {};
+            DAYS.forEach(d => daysOffCount[d] = 0);
+
+            // Count existing day offs
             staff.forEach(s => {
                 DAYS.forEach(day => {
-                    const hasPatternDayOff = dayOffPatterns[s.id] && dayOffPatterns[s.id].includes(day);
-                    if (hasPatternDayOff) {
-                        rota[s.id][day] = 'off';
-                    } else {
-                        rota[s.id][day] = null;
+                    if (state.getAssignment(s.id, day) === 'off') {
+                        daysOffCount[day]++;
                     }
                 });
             });
-            
-            // STEP 2: Initialize tracking
-            let staffHours = {};
-            staff.forEach(s => staffHours[s.id] = 0);
-            
-            // Get 10-week weekend stats for balancing
-            const weekendStats10Week = getWeekendStatsForPeriod(10);
-            
-            // STEP 3: Pre-plan consecutive days off for each staff member
-            planConsecutiveDaysOff(weekendStats10Week);
-            
-            // STEP 4: Assign shifts day by day, ensuring 1-2 coverage constraint
-            DAYS.forEach(day => {
-                let assignedToday = [];
-                
-                // Must have at least 1 Early (for 08:00-10:00 coverage)
-                let earlyScores = staff.map(s => ({
-                    id: s.id,
-                    score: scoreStaffForShift(s.id, day, 'early', staffHours, assignedToday, weekendStats10Week)
-                })).filter(s => s.score > -Infinity);
-                earlyScores.sort((a, b) => b.score - a.score);
-                
-                if (earlyScores.length > 0) {
-                    rota[earlyScores[0].id][day] = 'early';
-                    staffHours[earlyScores[0].id] += SHIFTS.early.hours;
-                    assignedToday.push(earlyScores[0].id);
-                }
-                
-                // Must have at least 1 Late (for 18:30-20:30 coverage)
-                let lateScores = staff.map(s => ({
-                    id: s.id,
-                    score: scoreStaffForShift(s.id, day, 'late', staffHours, assignedToday, weekendStats10Week)
-                })).filter(s => s.score > -Infinity);
-                lateScores.sort((a, b) => b.score - a.score);
-                
-                if (lateScores.length > 0) {
-                    rota[lateScores[0].id][day] = 'late';
-                    staffHours[lateScores[0].id] += SHIFTS.late.hours;
-                    assignedToday.push(lateScores[0].id);
-                }
-            });
-            
-            // STEP 5: Fill remaining hours - each staff needs exactly 5 shifts (37.5 hours)
-            let iterations = 0;
-            const maxIterations = 100;
-            
-            while (iterations < maxIterations) {
-                iterations++;
-                
-                // Find staff who still need shifts (under 37.5 hours)
-                const staffNeedingHours = staff
-                    .filter(s => staffHours[s.id] < TARGET_HOURS)
-                    .sort((a, b) => staffHours[a.id] - staffHours[b.id]);
-                
-                if (staffNeedingHours.length === 0) break;
-                
-                let assigned = false;
-                
-                for (const s of staffNeedingHours) {
-                    // Shuffle days for variety
-                    const shuffledDays = [...DAYS].sort(() => Math.random() - 0.5);
-                    
-                    for (const day of shuffledDays) {
-                        if (rota[s.id][day]) continue; // Already has shift or day off
-                        
-                        // Try each shift type, check if it would exceed 2 staff at any time
-                        const shuffledShifts = [...availableShifts].sort(() => Math.random() - 0.5);
-                        
-                        for (const shiftType of shuffledShifts) {
-                            // Check if adding this shift would cause >2 staff at any point
-                            const wouldExceedMax = wouldExceedMaxCoverage(day, shiftType, 2);
-                            
-                            if (!wouldExceedMax) {
-                                const score = scoreStaffForShift(s.id, day, shiftType, staffHours, [], weekendStats10Week);
-                                if (score > -Infinity) {
-                                    rota[s.id][day] = shiftType;
-                                    staffHours[s.id] += SHIFTS[shiftType].hours;
-                                    assigned = true;
-                                    break;
-                                }
+
+            // Determine golden weekend recipient
+            const goldenRecipient = selectGoldenWeekendRecipient(weekendStats);
+
+            // Shuffle staff order for fairness
+            const shuffledStaff = rng ? rng.shuffle(staff) : [...staff];
+
+            for (const s of shuffledStaff) {
+                // Count existing days off
+                const existingDaysOff = DAYS.filter(d => state.getAssignment(s.id, d) === 'off').length;
+                if (existingDaysOff >= 2) continue;
+
+                // Score each consecutive pair
+                const pairScores = consecutivePairs.map(pair => {
+                    const [day1, day2] = pair;
+                    let score = 0;
+
+                    // Can't use if already has assignment
+                    if (state.getAssignment(s.id, day1) && state.getAssignment(s.id, day1) !== 'off') return { pair, score: -Infinity };
+                    if (state.getAssignment(s.id, day2) && state.getAssignment(s.id, day2) !== 'off') return { pair, score: -Infinity };
+
+                    // Max 2 staff off per day
+                    if (daysOffCount[day1] >= 2) return { pair, score: -Infinity };
+                    if (daysOffCount[day2] >= 2) return { pair, score: -Infinity };
+
+                    // Prefer days with fewer staff off
+                    score -= daysOffCount[day1] * 5;
+                    score -= daysOffCount[day2] * 5;
+
+                    // Golden weekend bonus
+                    const isWeekendPair = (day1 === 'sat' && day2 === 'sun');
+                    if (isWeekendPair) {
+                        if (s.id === goldenRecipient) {
+                            score += 50;
+                        } else {
+                            const avg = calculateAvgWeekendShifts(weekendStats);
+                            const staffTotal = weekendStats[s.id]?.total || 0;
+                            if (staffTotal > avg + 1) {
+                                score += 10;
+                            } else if (staffTotal < avg - 1) {
+                                score -= 15;
                             }
                         }
+                    }
+
+                    // Random factor
+                    if (rng) score += rng.range(5);
+
+                    return { pair, score };
+                });
+
+                pairScores.sort((a, b) => b.score - a.score);
+                const bestPair = pairScores.find(p => p.score > -Infinity);
+
+                if (bestPair) {
+                    const [day1, day2] = bestPair.pair;
+                    state.assign(s.id, day1, 'off');
+                    state.assign(s.id, day2, 'off');
+                    daysOffCount[day1]++;
+                    daysOffCount[day2]++;
+                }
+            }
+        }
+
+        // Assign minimum coverage for a day
+        function assignMinimumCoverageForDay(state, day, weekendStats) {
+            // Need 1 Early and 1 Late for full coverage
+            const availableForEarly = staff.filter(s => {
+                const current = state.getAssignment(s.id, day);
+                if (current === 'off') return false;
+                if (current) return false;
+                if (state.getHours(s.id) + SHIFTS.early.hours > TARGET_HOURS) return false;
+
+                // Check cross-week turnaround
+                if (day === 'mon') {
+                    const prevSunday = getPreviousWeekSundayShift(s.id);
+                    if (hasShortTurnaround(prevSunday, 'early')) return false;
+                }
+                return true;
+            });
+
+            const availableForLate = staff.filter(s => {
+                const current = state.getAssignment(s.id, day);
+                if (current === 'off') return false;
+                if (current) return false;
+                if (state.getHours(s.id) + SHIFTS.late.hours > TARGET_HOURS) return false;
+                return true;
+            });
+
+            // Score and select for Early
+            if (availableForEarly.length > 0) {
+                const earlyScores = availableForEarly.map(s => ({
+                    id: s.id,
+                    score: scoreAssignmentForSolver(s.id, day, 'early', state, weekendStats)
+                }));
+                earlyScores.sort((a, b) => b.score - a.score);
+                state.assign(earlyScores[0].id, day, 'early');
+            }
+
+            // Score and select for Late (exclude whoever got Early)
+            const availableForLateFiltered = availableForLate.filter(s =>
+                state.getAssignment(s.id, day) !== 'early'
+            );
+
+            if (availableForLateFiltered.length > 0) {
+                const lateScores = availableForLateFiltered.map(s => ({
+                    id: s.id,
+                    score: scoreAssignmentForSolver(s.id, day, 'late', state, weekendStats)
+                }));
+                lateScores.sort((a, b) => b.score - a.score);
+                state.assign(lateScores[0].id, day, 'late');
+            }
+        }
+
+        // Greedy fallback when backtracking fails
+        function greedyFillRemaining(state, weekendStats) {
+            // Try standard shifts first, then floating as last resort
+            const standardShifts = ['early', 'mid', 'late'];
+            let iterations = 0;
+            const maxIterations = 100;
+
+            while (iterations < maxIterations) {
+                iterations++;
+
+                const staffNeedingHours = staff
+                    .filter(s => state.getHours(s.id) < TARGET_HOURS)
+                    .sort((a, b) => state.getHours(a.id) - state.getHours(b.id));
+
+                if (staffNeedingHours.length === 0) break;
+
+                let assigned = false;
+
+                for (const s of staffNeedingHours) {
+                    const shuffledDays = rng ? rng.shuffle(DAYS) : [...DAYS];
+
+                    for (const day of shuffledDays) {
+                        if (state.getAssignment(s.id, day)) continue;
+
+                        // Try standard shifts first
+                        const shuffledShifts = rng ? rng.shuffle(standardShifts) : [...standardShifts];
+
+                        for (const shift of shuffledShifts) {
+                            if (isValidAssignment(s.id, day, shift, state)) {
+                                state.assign(s.id, day, shift);
+                                assigned = true;
+                                break;
+                            }
+                        }
+
+                        // If no standard shift works, try floating
+                        if (!assigned && isValidAssignment(s.id, day, 'floating', state)) {
+                            state.assign(s.id, day, 'floating');
+                            assigned = true;
+                        }
+
                         if (assigned) break;
                     }
                     if (assigned) break;
                 }
-                
-                if (!assigned) break; // No more valid assignments possible
+
+                if (!assigned) break;
             }
-            
-            // STEP 6: Mark remaining empty slots as Day Off
+        }
+
+        // Fill any remaining empty slots
+        // Weekdays: use floating shifts
+        // Weekends: try standard shifts (early/mid/late) since floating not allowed
+        function fillGapsWithFloating(state) {
             staff.forEach(s => {
                 DAYS.forEach(day => {
-                    if (!rota[s.id][day]) {
-                        rota[s.id][day] = 'off';
+                    const current = state.getAssignment(s.id, day);
+                    if (current) return; // Already assigned
+
+                    const isWeekend = (day === 'sat' || day === 'sun');
+
+                    if (isWeekend) {
+                        // Try standard shifts on weekends (no floating allowed)
+                        for (const shift of ['early', 'mid', 'late']) {
+                            if (isValidAssignment(s.id, day, shift, state)) {
+                                state.assign(s.id, day, shift);
+                                console.log(`Filled weekend slot for ${s.name} on ${day} with ${shift} shift`);
+                                break;
+                            }
+                        }
+                    } else {
+                        // Weekdays: use floating
+                        state.assign(s.id, day, 'floating');
+                        console.log(`Filled empty slot for ${s.name} on ${day} with floating shift`);
                     }
                 });
             });
-            
-            // STEP 7: Validate and show results
-            const result = validateRota();
-            showGenerationResult(result);
-            
-            // STEP 8: Save and render
-            saveToLocalStorage();
-            renderTable();
-            renderWeekendStats();
+        }
+
+        // Optimise fairness through shift swaps
+        function optimiseWithSwaps(state, weekendStats) {
+            const MAX_ITERATIONS = 50;
+            let improved = true;
+            let iterations = 0;
+
+            while (improved && iterations < MAX_ITERATIONS) {
+                improved = false;
+                iterations++;
+
+                const currentScore = calculateFairnessScore(state, weekendStats);
+
+                for (let i = 0; i < staff.length; i++) {
+                    for (let j = i + 1; j < staff.length; j++) {
+                        const s1 = staff[i];
+                        const s2 = staff[j];
+
+                        for (const day of DAYS) {
+                            const shift1 = state.getAssignment(s1.id, day);
+                            const shift2 = state.getAssignment(s2.id, day);
+
+                            if (!shift1 || !shift2) continue;
+                            if (shift1 === 'off' || shift2 === 'off') continue;
+                            if (shift1 === shift2) continue;
+
+                            // Check if swap is valid
+                            if (isSwapValid(state, s1.id, s2.id, day, shift1, shift2)) {
+                                // Try swap
+                                performSwap(state, s1.id, s2.id, day, shift1, shift2);
+                                const newScore = calculateFairnessScore(state, weekendStats);
+
+                                if (newScore > currentScore + 0.5) {
+                                    improved = true;
+                                } else {
+                                    // Undo swap
+                                    performSwap(state, s1.id, s2.id, day, shift2, shift1);
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            console.log('Swap optimisation completed in', iterations, 'iterations');
+        }
+
+        function isSwapValid(state, staffId1, staffId2, day, shift1, shift2) {
+            // Check hours would still be valid
+            const hours1After = state.getHours(staffId1) - SHIFTS[shift1].hours + SHIFTS[shift2].hours;
+            const hours2After = state.getHours(staffId2) - SHIFTS[shift2].hours + SHIFTS[shift1].hours;
+
+            if (hours1After > TARGET_HOURS || hours2After > TARGET_HOURS) return false;
+            if (hours1After < 0 || hours2After < 0) return false;
+
+            const dayIndex = DAYS.indexOf(day);
+
+            // Check 12-hour rest for staff1 getting shift2
+            if (dayIndex > 0) {
+                const prevDay = DAYS[dayIndex - 1];
+                const prevShift1 = state.getAssignment(staffId1, prevDay);
+                if (prevShift1 && prevShift1 !== 'off' && hasShortTurnaround(prevShift1, shift2)) return false;
+            }
+            if (dayIndex < DAYS.length - 1) {
+                const nextDay = DAYS[dayIndex + 1];
+                const nextShift1 = state.getAssignment(staffId1, nextDay);
+                if (nextShift1 && nextShift1 !== 'off' && hasShortTurnaround(shift2, nextShift1)) return false;
+            }
+
+            // Check 12-hour rest for staff2 getting shift1
+            if (dayIndex > 0) {
+                const prevDay = DAYS[dayIndex - 1];
+                const prevShift2 = state.getAssignment(staffId2, prevDay);
+                if (prevShift2 && prevShift2 !== 'off' && hasShortTurnaround(prevShift2, shift1)) return false;
+            }
+            if (dayIndex < DAYS.length - 1) {
+                const nextDay = DAYS[dayIndex + 1];
+                const nextShift2 = state.getAssignment(staffId2, nextDay);
+                if (nextShift2 && nextShift2 !== 'off' && hasShortTurnaround(shift1, nextShift2)) return false;
+            }
+
+            // Check cross-week turnaround for Monday
+            if (day === 'mon') {
+                if (shift2 === 'early') {
+                    const prevSunday1 = getPreviousWeekSundayShift(staffId1);
+                    if (hasShortTurnaround(prevSunday1, 'early')) return false;
+                }
+                if (shift1 === 'early') {
+                    const prevSunday2 = getPreviousWeekSundayShift(staffId2);
+                    if (hasShortTurnaround(prevSunday2, 'early')) return false;
+                }
+            }
+
+            return true;
+        }
+
+        function performSwap(state, staffId1, staffId2, day, shift1, shift2) {
+            // Directly modify assignments (bypassing history for swaps)
+            state.assignments[staffId1][day] = shift2;
+            state.assignments[staffId2][day] = shift1;
+
+            state.staffHours[staffId1] += SHIFTS[shift2].hours - SHIFTS[shift1].hours;
+            state.staffHours[staffId2] += SHIFTS[shift1].hours - SHIFTS[shift2].hours;
+        }
+
+        function calculateFairnessScore(state, weekendStats) {
+            let score = 0;
+
+            // Shift variety score (lower variance = better)
+            staff.forEach(s => {
+                const variety = calculateShiftVariety(s.id, state.assignments);
+                const values = Object.values(variety).filter(v => v > 0);
+                if (values.length > 0) {
+                    const mean = values.reduce((a, b) => a + b, 0) / values.length;
+                    const variance = values.reduce((a, v) => a + Math.pow(v - mean, 2), 0) / values.length;
+                    score -= variance * 2;
+                }
+            });
+
+            // Weekend balance score
+            const avgWeekend = calculateAvgWeekendShifts(weekendStats);
+            staff.forEach(s => {
+                const currentWeekendShifts = ['sat', 'sun'].filter(d => {
+                    const shift = state.getAssignment(s.id, d);
+                    return shift && shift !== 'off';
+                }).length;
+                const total = (weekendStats[s.id]?.total || 0) + currentWeekendShifts;
+                const deviation = Math.abs(total - avgWeekend);
+                score -= deviation * 3;
+            });
+
+            // Preference satisfaction score
+            staff.forEach(s => {
+                const prefs = staffPreferences[s.id];
+                if (prefs) {
+                    DAYS.forEach(day => {
+                        const shift = state.getAssignment(s.id, day);
+                        if (shift && shift !== 'off') {
+                            const shiftPref = prefs.shiftPreferences?.[shift] || 3;
+                            score += (shiftPref - 3);
+
+                            if (prefs.preferredDaysOff?.includes(day)) {
+                                score -= 2;
+                            }
+                        }
+                    });
+                }
+            });
+
+            return score;
         }
         
         function generate10Weeks() {
@@ -1453,101 +2500,36 @@
         
         function generateWeekSilent() {
             // Same as generateBestFitRota but without UI updates
-            const availableShifts = ['early', 'mid', 'late'];
-            
-            let staffHours = {};
-            staff.forEach(s => staffHours[s.id] = 0);
-            
+            rng = new SeededRandom(getWeekSeed(currentWeekStart));
+
             const weekendStats10Week = getWeekendStatsForPeriod(10);
-            
-            // STEP 1: Pre-plan consecutive days off for each staff member
-            // Each staff works 5 shifts (37.5hrs), so 2 days off per week
-            // Try to make these consecutive
-            planConsecutiveDaysOff(weekendStats10Week);
-            
-            // STEP 2: Assign minimum coverage: 1 Early + 1 Late per day
+
+            // Initialize state
+            const state = new RotaState();
+            state.initialize(staff, rota, dayOffPatterns);
+
+            // Plan consecutive days off
+            planConsecutiveDaysOffWithState(state, weekendStats10Week);
+
+            // Assign minimum coverage
             DAYS.forEach(day => {
-                let assignedToday = [];
-                
-                let earlyScores = staff.map(s => ({
-                    id: s.id,
-                    score: scoreStaffForShift(s.id, day, 'early', staffHours, assignedToday, weekendStats10Week)
-                })).filter(s => s.score > -Infinity);
-                earlyScores.sort((a, b) => b.score - a.score);
-                
-                if (earlyScores.length > 0) {
-                    rota[earlyScores[0].id][day] = 'early';
-                    staffHours[earlyScores[0].id] += SHIFTS.early.hours;
-                    assignedToday.push(earlyScores[0].id);
-                }
-                
-                let lateScores = staff.map(s => ({
-                    id: s.id,
-                    score: scoreStaffForShift(s.id, day, 'late', staffHours, assignedToday, weekendStats10Week)
-                })).filter(s => s.score > -Infinity);
-                lateScores.sort((a, b) => b.score - a.score);
-                
-                if (lateScores.length > 0) {
-                    rota[lateScores[0].id][day] = 'late';
-                    staffHours[lateScores[0].id] += SHIFTS.late.hours;
-                    assignedToday.push(lateScores[0].id);
-                }
+                assignMinimumCoverageForDay(state, day, weekendStats10Week);
             });
-            
-            // STEP 3: Fill remaining hours
-            let iterations = 0;
-            const maxIterations = 100;
-            
-            while (iterations < maxIterations) {
-                iterations++;
-                
-                const staffNeedingHours = staff
-                    .filter(s => staffHours[s.id] < TARGET_HOURS)
-                    .sort((a, b) => staffHours[a.id] - staffHours[b.id]);
-                
-                if (staffNeedingHours.length === 0) break;
-                
-                let assigned = false;
-                
-                for (const s of staffNeedingHours) {
-                    const shuffledDays = [...DAYS].sort(() => Math.random() - 0.5);
-                    
-                    for (const day of shuffledDays) {
-                        if (rota[s.id][day]) continue;
-                        
-                        const shuffledShifts = [...availableShifts].sort(() => Math.random() - 0.5);
-                        
-                        for (const shiftType of shuffledShifts) {
-                            const wouldExceedMax = wouldExceedMaxCoverage(day, shiftType, 2);
-                            
-                            if (!wouldExceedMax) {
-                                const score = scoreStaffForShift(s.id, day, shiftType, staffHours, [], weekendStats10Week);
-                                if (score > -Infinity) {
-                                    rota[s.id][day] = shiftType;
-                                    staffHours[s.id] += SHIFTS[shiftType].hours;
-                                    assigned = true;
-                                    break;
-                                }
-                            }
-                        }
-                        if (assigned) break;
-                    }
-                    if (assigned) break;
-                }
-                
-                if (!assigned) break;
+
+            // Fill remaining with backtracking
+            const success = solveWithBacktracking(state, weekendStats10Week, 500);
+
+            if (!success) {
+                greedyFillRemaining(state, weekendStats10Week);
             }
-            
-            // Mark remaining as Day Off
-            staff.forEach(s => {
-                DAYS.forEach(day => {
-                    if (!rota[s.id][day]) {
-                        rota[s.id][day] = 'off';
-                    }
-                });
-            });
+
+            // Optimise with swaps
+            optimiseWithSwaps(state, weekendStats10Week);
+
+            // Apply state to rota
+            rota = state.toRota();
         }
-        
+
         function planConsecutiveDaysOff(weekendStats10Week) {
             // Pre-assign consecutive days off for each staff member
             // Each person needs 2 days off (works 5 x 7.5hr shifts = 37.5hrs)
@@ -1641,20 +2623,25 @@
         
         function wouldExceedMaxCoverage(day, newShiftType, maxStaff) {
             // Check if adding this shift type on this day would cause >maxStaff at any time
-            // Exception: Allow up to 3 staff during changeover period (12:00-16:30)
+            // Exception: Allow up to 3 staff during morning (08:00-12:00) and changeover (12:00-16:30) on WEEKDAYS only
+            // Weekends always max 2 staff
+            const MORNING_START = 8;
+            const MORNING_END = 12;
             const CHANGEOVER_START = 12;
             const CHANGEOVER_END = 16.5;
-            
+            const isWeekend = (day === 'sat' || day === 'sun');
+
             const newCoverage = SHIFTS[newShiftType].coverage;
-            
+
             for (const [start, end] of newCoverage) {
                 for (let t = start; t < end; t += 0.5) {
                     const currentCount = getStaffCountAtTime(day, t);
-                    
-                    // During changeover, allow up to 3 staff
+
+                    // Weekends: always max 2, Weekdays: 3 during morning/changeover
+                    const isMorning = (t >= MORNING_START && t < MORNING_END);
                     const isChangeover = (t >= CHANGEOVER_START && t < CHANGEOVER_END);
-                    const effectiveMax = isChangeover ? 3 : maxStaff;
-                    
+                    const effectiveMax = (!isWeekend && (isMorning || isChangeover)) ? 3 : maxStaff;
+
                     if (currentCount >= effectiveMax) {
                         return true; // Already at max, can't add more
                     }
@@ -1777,30 +2764,35 @@
                 graphArea.style.cssText = `display: flex; align-items: flex-end; gap: 1px; height: ${barHeight}px; background: var(--staff-row-bg); border-radius: 4px; padding: 2px; flex: 1;`;
                 
                 // Create bars for each 30-min slot
+                const MORNING_START = 8;
+                const MORNING_END = 12;
                 const CHANGEOVER_START = 12;
                 const CHANGEOVER_END = 16.5;
-                
+
                 for (let t = OPEN_TIME; t < CLOSE_TIME; t += 0.5) {
                     const count = getStaffCountAtTime(day, t);
                     const shifts = getShiftsAtTime(day, t);
+                    const isMorning = (t >= MORNING_START && t < MORNING_END);
                     const isChangeover = (t >= CHANGEOVER_START && t < CHANGEOVER_END);
-                    
+                    const allowsThree = isMorning || isChangeover;
+
                     const bar = document.createElement('div');
                     const heightPercent = (count / maxStaff) * 100;
-                    
+
                     let bgColor;
                     if (count === 0) {
                         bgColor = '#e74c3c'; // gap - red
                     } else if (count >= 1 && count <= 2) {
                         bgColor = '#27ae60'; // good - green (1-2 staff)
-                    } else if (count === 3 && isChangeover) {
-                        bgColor = '#3498db'; // acceptable during changeover - blue
+                    } else if (count === 3 && allowsThree) {
+                        bgColor = '#3498db'; // acceptable during morning/changeover - blue
                     } else {
-                        bgColor = '#e67e22'; // over - orange (4+ or 3 outside changeover)
+                        bgColor = '#e67e22'; // over - orange (4+ or 3 outside allowed periods)
                     }
-                    
+
+                    const periodLabel = isMorning ? ' (morning)' : isChangeover ? ' (changeover)' : '';
                     bar.style.cssText = `flex: 1; height: ${heightPercent}%; background: ${bgColor}; border-radius: 2px 2px 0 0; min-height: ${count > 0 ? '4px' : '100%'}; transition: height 0.3s;`;
-                    bar.title = `${Math.floor(t)}:${(t % 1) * 60 || '00'} - ${count} staff${isChangeover ? ' (changeover)' : ''}`;
+                    bar.title = `${Math.floor(t)}:${(t % 1) * 60 || '00'} - ${count} staff${periodLabel}`;
                     
                     if (count === 0) {
                         bar.style.opacity = '0.5';
@@ -1844,7 +2836,8 @@
             let shifts = [];
             staff.forEach(s => {
                 const shift = rota[s.id][day];
-                if (shift && shift !== 'off') {
+                // Floating shifts don't count towards coverage (they're flexible)
+                if (shift && shift !== 'off' && shift !== 'floating') {
                     const coverage = SHIFTS[shift].coverage;
                     for (const [start, end] of coverage) {
                         if (time >= start && time < end) {
@@ -1863,7 +2856,8 @@
             let count = 0;
             staff.forEach(s => {
                 const shift = rota[s.id][day];
-                if (shift && shift !== 'off') {
+                // Floating shifts don't count towards coverage (they're flexible)
+                if (shift && shift !== 'off' && shift !== 'floating') {
                     const coverage = SHIFTS[shift].coverage;
                     for (const [start, end] of coverage) {
                         if (time >= start && time < end) {
@@ -2001,39 +2995,377 @@
         }
         
         function printRota() {
-            // Set print header content (week at top)
-            document.getElementById('printWeek').textContent = `Week: ${formatWeekDisplay(currentWeekStart)}`;
-            
-            // Set print footer content (timestamp at bottom)
-            const now = new Date();
-            document.getElementById('printDate').textContent = `Printed: ${now.toLocaleDateString('en-GB')} at ${now.toLocaleTimeString('en-GB', {hour: '2-digit', minute: '2-digit'})}`;
-            
             // Create custom dialog
             const overlay = document.createElement('div');
             overlay.style.cssText = 'position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center; z-index: 9999;';
-            
+
             const dialog = document.createElement('div');
-            dialog.style.cssText = 'background: var(--card-bg); padding: 20px 30px; border-radius: 8px; text-align: center; color: var(--text-color); box-shadow: 0 4px 20px rgba(0,0,0,0.3);';
+            dialog.style.cssText = 'background: var(--card-bg); padding: 25px 30px; border-radius: 8px; color: var(--text-color); box-shadow: 0 4px 20px rgba(0,0,0,0.3); min-width: 320px;';
             dialog.innerHTML = `
-                <p style="margin: 0 0 20px; font-size: 16px;">Include hourly coverage graph in printout?</p>
-                <button id="printYes" style="padding: 8px 20px; margin-right: 10px; background: #27ae60; color: white; border: none; border-radius: 5px; cursor: pointer; font-size: 14px;">Yes</button>
-                <button id="printNo" style="padding: 8px 20px; background: #3498db; color: white; border: none; border-radius: 5px; cursor: pointer; font-size: 14px;">No</button>
+                <h3 style="margin: 0 0 20px; text-align: center;">Print Schedule</h3>
+
+                <div style="margin-bottom: 15px;">
+                    <label style="display: block; margin-bottom: 8px; font-weight: bold;">Week Range:</label>
+                    <div style="display: flex; flex-direction: column; gap: 8px;">
+                        <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                            <input type="radio" name="printRange" value="current" checked style="margin: 0;">
+                            <span>This week only</span>
+                        </label>
+                        <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                            <input type="radio" name="printRange" value="range" style="margin: 0;">
+                            <span>Week range:</span>
+                        </label>
+                        <div id="rangeInputs" style="display: none; margin-left: 24px; gap: 10px;">
+                            <label style="display: flex; align-items: center; gap: 5px;">
+                                <span>From:</span>
+                                <input type="date" id="printStartDate" style="padding: 5px; border: 1px solid var(--border-color); border-radius: 4px; background: var(--input-bg); color: var(--text-color);">
+                            </label>
+                            <label style="display: flex; align-items: center; gap: 5px; margin-top: 8px;">
+                                <span>To:</span>
+                                <input type="date" id="printEndDate" style="padding: 5px; border: 1px solid var(--border-color); border-radius: 4px; background: var(--input-bg); color: var(--text-color);">
+                            </label>
+                        </div>
+                    </div>
+                </div>
+
+                <div style="margin-bottom: 20px;">
+                    <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
+                        <input type="checkbox" id="includeCoverage" style="margin: 0;">
+                        <span>Include hourly coverage graph</span>
+                    </label>
+                </div>
+
+                <div style="display: flex; justify-content: center; gap: 10px;">
+                    <button id="printConfirm" style="padding: 10px 25px; background: #27ae60; color: white; border: none; border-radius: 5px; cursor: pointer; font-size: 14px;">Print</button>
+                    <button id="printCancel" style="padding: 10px 25px; background: #95a5a6; color: white; border: none; border-radius: 5px; cursor: pointer; font-size: 14px;">Cancel</button>
+                </div>
             `;
-            
+
             overlay.appendChild(dialog);
             document.body.appendChild(overlay);
-            
-            document.getElementById('printYes').onclick = () => {
+
+            // Set default dates
+            const startDateInput = document.getElementById('printStartDate');
+            const endDateInput = document.getElementById('printEndDate');
+            startDateInput.value = currentWeekStart.toISOString().split('T')[0];
+            const endDefault = new Date(currentWeekStart);
+            endDefault.setDate(endDefault.getDate() + 7 * 4); // 4 weeks ahead
+            endDateInput.value = endDefault.toISOString().split('T')[0];
+
+            // Toggle range inputs visibility
+            const rangeInputs = document.getElementById('rangeInputs');
+            document.querySelectorAll('input[name="printRange"]').forEach(radio => {
+                radio.addEventListener('change', () => {
+                    rangeInputs.style.display = radio.value === 'range' ? 'block' : 'none';
+                });
+            });
+
+            // Cancel button
+            document.getElementById('printCancel').onclick = () => {
                 document.body.removeChild(overlay);
+            };
+
+            // Click outside to close
+            overlay.onclick = (e) => {
+                if (e.target === overlay) {
+                    document.body.removeChild(overlay);
+                }
+            };
+
+            // Print button
+            document.getElementById('printConfirm').onclick = () => {
+                const printRange = document.querySelector('input[name="printRange"]:checked').value;
+                const includeCoverage = document.getElementById('includeCoverage').checked;
+
+                if (printRange === 'current') {
+                    document.body.removeChild(overlay);
+                    printSingleWeek(currentWeekStart, includeCoverage);
+                } else {
+                    // Parse dates properly (YYYY-MM-DD format from input)
+                    const startVal = startDateInput.value;
+                    const endVal = endDateInput.value;
+
+                    if (!startVal || !endVal) {
+                        alert('Please select both start and end dates');
+                        return;
+                    }
+
+                    const startDate = new Date(startVal + 'T00:00:00');
+                    const endDate = new Date(endVal + 'T00:00:00');
+
+                    if (startDate > endDate) {
+                        alert('Start date must be before end date');
+                        return;
+                    }
+
+                    document.body.removeChild(overlay);
+                    printWeekRange(startDate, endDate, includeCoverage);
+                }
+            };
+        }
+
+        function printSingleWeek(weekStart, includeCoverage) {
+            document.getElementById('printWeek').textContent = `Week: ${formatWeekDisplay(weekStart)}`;
+            const now = new Date();
+            document.getElementById('printDate').textContent = `Printed: ${now.toLocaleDateString('en-GB')} at ${now.toLocaleTimeString('en-GB', {hour: '2-digit', minute: '2-digit'})}`;
+
+            if (includeCoverage) {
                 document.querySelector('.coverage-detail').classList.add('print-visible');
-                window.print();
-            };
-            
-            document.getElementById('printNo').onclick = () => {
-                document.body.removeChild(overlay);
+            } else {
                 document.querySelector('.coverage-detail').classList.remove('print-visible');
-                window.print();
-            };
+            }
+
+            window.print();
+        }
+
+        function printWeekRange(startDate, endDate, includeCoverage) {
+            // Get Monday of start week
+            const startMonday = getMonday(startDate);
+            const endMonday = getMonday(endDate);
+
+            // Collect all weeks to print
+            const weeks = [];
+            let current = new Date(startMonday);
+            while (current <= endMonday) {
+                weeks.push(new Date(current));
+                current.setDate(current.getDate() + 7);
+            }
+
+            if (weeks.length === 0) {
+                alert('Invalid date range');
+                return;
+            }
+
+            // Store original week
+            const originalWeek = new Date(currentWeekStart);
+
+            const now = new Date();
+            const timestamp = 'Printed: ' + now.toLocaleDateString('en-GB') + ' at ' + now.toLocaleTimeString('en-GB', {hour: '2-digit', minute: '2-digit'});
+
+            // Build HTML content for all weeks
+            let pagesHtml = '';
+
+            for (let i = 0; i < weeks.length; i++) {
+                const weekStart = weeks[i];
+
+                // Load this week's data
+                currentWeekStart = weekStart;
+                loadWeekData();
+
+                // Build table HTML directly from data
+                const printColorAdjust = '-webkit-print-color-adjust:exact !important; print-color-adjust:exact !important;';
+                let tableHtml = '<table class="rota-table" style="width:100%; border-collapse:collapse;">';
+                tableHtml += '<thead><tr>';
+                tableHtml += '<th style="background:#34495e !important; color:white !important; padding:8px; border:1px solid #ddd; ' + printColorAdjust + '">Staff</th>';
+                DAY_NAMES.forEach((dayName, idx) => {
+                    const isWeekend = idx >= 5;
+                    const bg = isWeekend ? '#8e44ad' : '#34495e';
+                    tableHtml += '<th style="background:' + bg + ' !important; color:white !important; padding:8px; border:1px solid #ddd; ' + printColorAdjust + '">' + dayName + '</th>';
+                });
+                tableHtml += '<th style="background:#34495e !important; color:white !important; padding:8px; border:1px solid #ddd; ' + printColorAdjust + '">Hours</th>';
+                tableHtml += '</tr></thead><tbody>';
+
+                staff.forEach(s => {
+                    tableHtml += '<tr>';
+                    tableHtml += '<td style="padding:8px; border:1px solid #ddd; font-weight:bold; text-align:left;">' + s.name + '</td>';
+
+                    DAYS.forEach(day => {
+                        const shift = rota[s.id] ? rota[s.id][day] : null;
+                        let cellStyle = 'padding:8px; border:1px solid #ddd; text-align:center;';
+                        let cellContent = '';
+
+                        if (shift === 'off') {
+                            cellStyle += ' background:#f5f5f5 !important; -webkit-print-color-adjust:exact !important; print-color-adjust:exact !important;';
+                            cellContent = 'OFF';
+                        } else if (shift && SHIFTS[shift]) {
+                            const colors = {
+                                early: '#d4edda',
+                                late: '#cce5ff',
+                                mid: '#fff3cd',
+                                long: '#f8d7da',
+                                floating: '#e2d5f1'
+                            };
+                            cellStyle += ' background:' + (colors[shift] || '#fff') + ' !important; -webkit-print-color-adjust:exact !important; print-color-adjust:exact !important;';
+                            cellContent = '<strong>' + SHIFTS[shift].name + '</strong><br><small>' + SHIFTS[shift].time + '</small>';
+                        }
+
+                        tableHtml += '<td style="' + cellStyle + '">' + cellContent + '</td>';
+                    });
+
+                    const hours = calculateStaffHours(s.id);
+                    let hoursStyle = 'padding:8px; border:1px solid #ddd; text-align:center;';
+                    if (hours > TARGET_HOURS) {
+                        hoursStyle += ' color:#c0392b;';
+                    } else if (hours < TARGET_HOURS) {
+                        hoursStyle += ' color:#e67e22;';
+                    } else {
+                        hoursStyle += ' color:#27ae60;';
+                    }
+                    tableHtml += '<td style="' + hoursStyle + '">' + hours + ' / ' + TARGET_HOURS + '</td>';
+                    tableHtml += '</tr>';
+                });
+
+                tableHtml += '</tbody></table>';
+
+                // Build coverage graph HTML if requested
+                let coverageHtml = '';
+                if (includeCoverage) {
+                    coverageHtml = '<div style="margin-top: 15px;"><h4 style="margin: 0 0 10px; font-size: 14px;">Hourly Coverage</h4>';
+                    coverageHtml += '<div style="display: flex; gap: 5px; flex-wrap: nowrap;">';
+
+                    DAYS.forEach((day, dayIdx) => {
+                        coverageHtml += '<div style="flex: 1; min-width: 80px; background: #f8f9fa; border-radius: 4px; padding: 5px; border: 1px solid #ddd;">';
+                        coverageHtml += '<div style="text-align: center; font-weight: bold; font-size: 10px; margin-bottom: 5px; color:' + (dayIdx >= 5 ? '#8e44ad' : '#333') + ';">' + DAY_NAMES[dayIdx] + '</div>';
+                        coverageHtml += '<div style="display: flex; align-items: flex-end; gap: 1px; height: 60px; background: #eee; border-radius: 2px; padding: 2px;">';
+
+                        for (let t = OPEN_TIME; t < CLOSE_TIME; t += 0.5) {
+                            const count = getStaffCountAtTime(day, t);
+                            const heightPercent = (count / 5) * 100;
+                            let bgColor = '#e74c3c'; // gap
+                            if (count >= 1 && count <= 2) bgColor = '#27ae60'; // good
+                            else if (count === 3) bgColor = '#3498db'; // acceptable
+                            else if (count >= 4) bgColor = '#e67e22'; // over
+
+                            coverageHtml += '<div style="flex: 1; height: ' + heightPercent + '%; background: ' + bgColor + '; min-height: ' + (count > 0 ? '2px' : '100%') + '; border-radius: 1px 1px 0 0; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important;"></div>';
+                        }
+
+                        coverageHtml += '</div></div>';
+                    });
+
+                    coverageHtml += '</div></div>';
+                }
+
+                const pageBreak = i > 0 ? 'page-break-before: always;' : '';
+                const weekDisplay = formatWeekDisplay(weekStart);
+
+                pagesHtml += '<div class="print-week-page" style="' + pageBreak + '">';
+                pagesHtml += '<h1 style="text-align: center; margin: 0 0 5px; font-size: 24px;">Xrota</h1>';
+                pagesHtml += '<p style="text-align: center; margin: 0 0 15px; font-size: 14px; font-weight: bold;">Week: ' + weekDisplay + '</p>';
+                pagesHtml += tableHtml;
+                pagesHtml += coverageHtml;
+                const totalPages = weeks.length + 1; // +1 for weekend balance page
+                pagesHtml += '<div style="display: flex; justify-content: space-between; margin-top: 20px; font-size: 11px; color: #666;">';
+                pagesHtml += '<span>' + timestamp + '</span>';
+                pagesHtml += '<span>Page ' + (i + 1) + ' of ' + totalPages + '</span>';
+                pagesHtml += '</div></div>';
+            }
+
+            // Add weekend balance stats on final page
+            const lastWeek = weeks[weeks.length - 1];
+            currentWeekStart = lastWeek;
+            loadWeekData();
+
+            const stats = getWeekendStatsForPeriod(10);
+            const avgTotal = getAverageWeekendShifts10Week();
+
+            // Include last week's planned shifts
+            staff.forEach(s => {
+                if (rota[s.id]) {
+                    if (rota[s.id].sat && rota[s.id].sat !== 'off') {
+                        stats[s.id].sat++;
+                        stats[s.id].total++;
+                    }
+                    if (rota[s.id].sun && rota[s.id].sun !== 'off') {
+                        stats[s.id].sun++;
+                        stats[s.id].total++;
+                    }
+                }
+            });
+
+            let weekendHtml = '<div style="page-break-before: always; padding-top: 20px;">';
+            weekendHtml += '<h1 style="text-align: center; margin: 0 0 5px; font-size: 24px;">Xrota</h1>';
+            weekendHtml += '<h3 style="text-align: center; margin: 0 0 10px; font-size: 16px;">Weekend Shifts - Last 10 Weeks</h3>';
+            weekendHtml += '<p style="text-align: center; margin: 0 0 20px; font-size: 12px; color: #666;">Total weekend shifts worked per person. ';
+            weekendHtml += '<span style="color: #27ae60;">●</span> Balanced &nbsp; ';
+            weekendHtml += '<span style="color: #e74c3c;">●</span> Above average (give more weekends off) &nbsp; ';
+            weekendHtml += '<span style="color: #3498db;">●</span> Below average (available for more weekends)</p>';
+            weekendHtml += '<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 10px;">';
+
+            staff.forEach(s => {
+                const stat = stats[s.id];
+                let statusColor = '#27ae60';
+                let statusText = 'Balanced';
+                if (stat.total > avgTotal + 2) {
+                    statusColor = '#e74c3c';
+                    statusText = 'Above avg';
+                } else if (stat.total < avgTotal - 2) {
+                    statusColor = '#3498db';
+                    statusText = 'Below avg';
+                }
+
+                weekendHtml += '<div style="background: #f8f9fa; padding: 15px; border-radius: 8px; text-align: center; border: 1px solid #ddd;">';
+                weekendHtml += '<div style="font-weight: bold; margin-bottom: 8px;">' + s.name + '</div>';
+                weekendHtml += '<div style="font-size: 28px; color: ' + statusColor + '; font-weight: bold; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important;">' + stat.total + '</div>';
+                weekendHtml += '<div style="font-size: 10px; color: ' + statusColor + '; margin-bottom: 4px; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important;">' + statusText + '</div>';
+                weekendHtml += '<div style="font-size: 11px; color: #666;">Sat: ' + stat.sat + ' | Sun: ' + stat.sun + '</div>';
+                weekendHtml += '</div>';
+            });
+
+            weekendHtml += '<div style="background: #34495e; color: white; padding: 15px; border-radius: 8px; text-align: center; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important;">';
+            weekendHtml += '<div style="font-weight: bold; margin-bottom: 8px;">Team Average</div>';
+            weekendHtml += '<div style="font-size: 28px; font-weight: bold;">' + avgTotal.toFixed(1) + '</div>';
+            weekendHtml += '<div style="font-size: 11px; opacity: 0.8;">weekend shifts</div>';
+            weekendHtml += '</div></div>';
+
+            weekendHtml += '<div style="display: flex; justify-content: space-between; margin-top: 20px; font-size: 11px; color: #666;">';
+            weekendHtml += '<span>' + timestamp + '</span>';
+            weekendHtml += '<span>Page ' + (weeks.length + 1) + ' of ' + (weeks.length + 1) + '</span>';
+            weekendHtml += '</div></div>';
+
+            pagesHtml += weekendHtml;
+
+            // Restore original week
+            currentWeekStart = originalWeek;
+            loadWeekData();
+            renderTable();
+            renderTimeGrid();
+
+            // Use iframe approach
+            let iframe = document.getElementById('printFrame');
+            if (iframe) {
+                iframe.remove();
+            }
+
+            iframe = document.createElement('iframe');
+            iframe.id = 'printFrame';
+            iframe.style.position = 'fixed';
+            iframe.style.right = '0';
+            iframe.style.bottom = '0';
+            iframe.style.width = '0';
+            iframe.style.height = '0';
+            iframe.style.border = 'none';
+            document.body.appendChild(iframe);
+
+            const printDoc = iframe.contentWindow.document;
+            printDoc.open();
+            printDoc.write('<!DOCTYPE html><html><head><title>Xrota Schedule</title>');
+            printDoc.write('<style>');
+            printDoc.write('body { margin: 20px; font-family: -apple-system, BlinkMacSystemFont, sans-serif; }');
+            printDoc.write('table { width: 100%; border-collapse: collapse; }');
+            printDoc.write('th, td { border: 1px solid #ddd; padding: 8px; text-align: center; font-size: 11px; }');
+            printDoc.write('th { background: #34495e !important; color: white !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }');
+            printDoc.write('th.weekend { background: #8e44ad !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }');
+            printDoc.write('.shift-cell.early { background: #d4edda !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }');
+            printDoc.write('.shift-cell.late { background: #cce5ff !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }');
+            printDoc.write('.shift-cell.mid { background: #fff3cd !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }');
+            printDoc.write('.shift-cell.long { background: #f8d7da !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }');
+            printDoc.write('.shift-cell.floating { background: #e2d5f1 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }');
+            printDoc.write('.shift-cell.off { background: #f5f5f5 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }');
+            printDoc.write('.staff-name-input { border: none; background: transparent; font-weight: bold; }');
+            printDoc.write('.hours-display { font-size: 10px; }');
+            printDoc.write('.coverage-detail { margin-top: 20px; }');
+            printDoc.write('@media print { body { margin: 10px; } }');
+            printDoc.write('</style>');
+            printDoc.write('</head><body>');
+            printDoc.write(pagesHtml);
+            printDoc.write('</body></html>');
+            printDoc.close();
+
+            // Print after a short delay
+            setTimeout(function() {
+                iframe.contentWindow.focus();
+                iframe.contentWindow.print();
+            }, 300);
         }
         
         function toggleDarkMode() {
@@ -2059,6 +3391,521 @@
             }
         }
         
+        // Staff Preferences Modal functions
+        let currentPrefUnavailableDates = [];
+
+        function openPreferencesModal() {
+            document.getElementById('preferencesModal').style.display = 'flex';
+
+            // Populate staff dropdown
+            const select = document.getElementById('prefStaffSelect');
+            select.innerHTML = staff.map(s =>
+                `<option value="${s.id}">${s.name}</option>`
+            ).join('');
+
+            // Render days off checkboxes
+            const daysContainer = document.getElementById('prefDaysOff');
+            daysContainer.innerHTML = DAY_NAMES.map((name, i) => `
+                <label style="display: flex; align-items: center; gap: 5px; cursor: pointer;">
+                    <input type="checkbox" id="prefDay_${DAYS[i]}" style="width: 18px; height: 18px;">
+                    <span style="color: var(--text-color);">${name}</span>
+                </label>
+            `).join('');
+
+            // Render shift preference sliders
+            const shiftsContainer = document.getElementById('prefShiftRatings');
+            const shiftTypes = ['early', 'mid', 'late'];
+            shiftsContainer.innerHTML = shiftTypes.map(shift => `
+                <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 10px;">
+                    <span style="width: 60px; color: var(--text-color);">${SHIFTS[shift].name}:</span>
+                    <input type="range" id="prefShift_${shift}" min="1" max="5" value="3" style="flex: 1;">
+                    <span id="prefShiftVal_${shift}" style="width: 20px; text-align: center; color: var(--text-color);">3</span>
+                </div>
+            `).join('');
+
+            // Add event listeners to sliders
+            shiftTypes.forEach(shift => {
+                const slider = document.getElementById(`prefShift_${shift}`);
+                const display = document.getElementById(`prefShiftVal_${shift}`);
+                slider.addEventListener('input', () => {
+                    display.textContent = slider.value;
+                });
+            });
+
+            loadStaffPreference();
+        }
+
+        function closePreferencesModal() {
+            document.getElementById('preferencesModal').style.display = 'none';
+        }
+
+        function loadStaffPreference() {
+            const staffId = parseInt(document.getElementById('prefStaffSelect').value);
+            const prefs = staffPreferences[staffId] || getDefaultPreferences();
+
+            // Load preferred days off
+            DAYS.forEach(day => {
+                const checkbox = document.getElementById(`prefDay_${day}`);
+                if (checkbox) {
+                    checkbox.checked = prefs.preferredDaysOff?.includes(day) || false;
+                }
+            });
+
+            // Load shift preferences
+            ['early', 'mid', 'late'].forEach(shift => {
+                const slider = document.getElementById(`prefShift_${shift}`);
+                const display = document.getElementById(`prefShiftVal_${shift}`);
+                if (slider && display) {
+                    const val = prefs.shiftPreferences?.[shift] || 3;
+                    slider.value = val;
+                    display.textContent = val;
+                }
+            });
+
+            // Load unavailable dates
+            currentPrefUnavailableDates = [...(prefs.unavailableDates || [])];
+            renderUnavailableDates();
+
+            // Load notes
+            document.getElementById('prefNotes').value = prefs.notes || '';
+        }
+
+        function renderUnavailableDates() {
+            const list = document.getElementById('prefUnavailableDatesList');
+            if (currentPrefUnavailableDates.length === 0) {
+                list.innerHTML = '<li style="color: var(--text-muted); font-size: 12px;">No unavailable dates set</li>';
+                return;
+            }
+
+            list.innerHTML = currentPrefUnavailableDates.sort().map(date => `
+                <li style="display: flex; justify-content: space-between; align-items: center; padding: 5px 10px; background: var(--staff-row-bg); border-radius: 3px; margin-bottom: 5px;">
+                    <span style="color: var(--text-color);">${formatDateForDisplay(date)}</span>
+                    <button onclick="removeUnavailableDate('${date}')" style="background: #e74c3c; color: white; border: none; padding: 2px 8px; border-radius: 3px; cursor: pointer; font-size: 12px;">Remove</button>
+                </li>
+            `).join('');
+        }
+
+        function formatDateForDisplay(dateStr) {
+            const date = new Date(dateStr);
+            return date.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' });
+        }
+
+        function addUnavailableDate() {
+            const input = document.getElementById('prefUnavailableDate');
+            const dateStr = input.value;
+
+            if (!dateStr) {
+                alert('Please select a date');
+                return;
+            }
+
+            if (currentPrefUnavailableDates.includes(dateStr)) {
+                alert('Date already added');
+                return;
+            }
+
+            currentPrefUnavailableDates.push(dateStr);
+            renderUnavailableDates();
+            input.value = '';
+        }
+
+        function removeUnavailableDate(dateStr) {
+            currentPrefUnavailableDates = currentPrefUnavailableDates.filter(d => d !== dateStr);
+            renderUnavailableDates();
+        }
+
+        function saveCurrentPreference() {
+            const staffId = parseInt(document.getElementById('prefStaffSelect').value);
+
+            const preferredDaysOff = DAYS.filter(day => {
+                const checkbox = document.getElementById(`prefDay_${day}`);
+                return checkbox?.checked;
+            });
+
+            const shiftPreferences = {};
+            ['early', 'mid', 'late', 'long', 'floating'].forEach(shift => {
+                const slider = document.getElementById(`prefShift_${shift}`);
+                shiftPreferences[shift] = slider ? parseInt(slider.value) : 3;
+            });
+
+            staffPreferences[staffId] = {
+                preferredDaysOff,
+                shiftPreferences,
+                unavailableDates: [...currentPrefUnavailableDates],
+                maxConsecutive: 5,
+                notes: document.getElementById('prefNotes').value
+            };
+
+            saveStaffPreferences();
+
+            const staffName = staff.find(s => s.id === staffId)?.name || `Staff ${staffId}`;
+            alert(`Preferences saved for ${staffName}`);
+        }
+
+        // Import/Export functions
+        let pendingImportData = null;
+
+        function openImportExportModal() {
+            document.getElementById('importExportModal').style.display = 'flex';
+            document.getElementById('importPreview').style.display = 'none';
+            document.getElementById('csvFileInput').value = '';
+            pendingImportData = null;
+        }
+
+        function closeImportExportModal() {
+            document.getElementById('importExportModal').style.display = 'none';
+        }
+
+        function getAllWeekKeys() {
+            // Get all week keys from localStorage
+            const keys = [];
+            for (let i = 0; i < localStorage.length; i++) {
+                const key = localStorage.key(i);
+                if (key && key.startsWith('staffRota_') && key !== 'staffRota_staff' && key !== 'staffRota_dayOffPatterns') {
+                    keys.push(key.replace('staffRota_', ''));
+                }
+            }
+            return keys.sort();
+        }
+
+        function exportToCSV() {
+            const weekKeys = getAllWeekKeys();
+            const rows = [];
+
+            // Header row
+            rows.push(['week_start', 'staff_id', 'staff_name', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'].join(','));
+
+            // Data rows for each week
+            weekKeys.forEach(weekKey => {
+                const saved = localStorage.getItem('staffRota_' + weekKey);
+                if (saved) {
+                    try {
+                        const data = JSON.parse(saved);
+                        data.staff.forEach(s => {
+                            const staffRota = data.rota[s.id] || {};
+                            const row = [
+                                weekKey,
+                                s.id,
+                                `"${s.name.replace(/"/g, '""')}"`,
+                                staffRota.mon || '',
+                                staffRota.tue || '',
+                                staffRota.wed || '',
+                                staffRota.thu || '',
+                                staffRota.fri || '',
+                                staffRota.sat || '',
+                                staffRota.sun || ''
+                            ];
+                            rows.push(row.join(','));
+                        });
+                    } catch (e) {
+                        console.error('Error parsing week data:', weekKey, e);
+                    }
+                }
+            });
+
+            // If no saved weeks, export current week
+            if (weekKeys.length === 0) {
+                const weekKey = getWeekKey(currentWeekStart);
+                staff.forEach(s => {
+                    const staffRota = rota[s.id] || {};
+                    const row = [
+                        weekKey,
+                        s.id,
+                        `"${s.name.replace(/"/g, '""')}"`,
+                        staffRota.mon || '',
+                        staffRota.tue || '',
+                        staffRota.wed || '',
+                        staffRota.thu || '',
+                        staffRota.fri || '',
+                        staffRota.sat || '',
+                        staffRota.sun || ''
+                    ];
+                    rows.push(row.join(','));
+                });
+            }
+
+            // Add day off patterns section
+            rows.push('');
+            rows.push('# Day Off Patterns (persistent)');
+            rows.push(['staff_id', 'day_off_pattern'].join(','));
+
+            Object.keys(dayOffPatterns).forEach(staffId => {
+                if (dayOffPatterns[staffId] && dayOffPatterns[staffId].length > 0) {
+                    rows.push([staffId, dayOffPatterns[staffId].join(';')].join(','));
+                }
+            });
+
+            // Add staff preferences section
+            rows.push('');
+            rows.push('# Staff Preferences');
+            rows.push(['staff_id', 'preferred_days_off', 'shift_early', 'shift_mid', 'shift_late', 'unavailable_dates', 'notes'].join(','));
+
+            Object.keys(staffPreferences).forEach(staffId => {
+                const prefs = staffPreferences[staffId];
+                if (prefs) {
+                    rows.push([
+                        staffId,
+                        prefs.preferredDaysOff?.join(';') || '',
+                        prefs.shiftPreferences?.early || 3,
+                        prefs.shiftPreferences?.mid || 3,
+                        prefs.shiftPreferences?.late || 3,
+                        prefs.unavailableDates?.join(';') || '',
+                        `"${(prefs.notes || '').replace(/"/g, '""')}"`
+                    ].join(','));
+                }
+            });
+
+            // Create and download file
+            const csvContent = rows.join('\n');
+            const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+            const link = document.createElement('a');
+            const url = URL.createObjectURL(blob);
+
+            link.setAttribute('href', url);
+            link.setAttribute('download', `xrota_export_${new Date().toISOString().split('T')[0]}.csv`);
+            link.style.visibility = 'hidden';
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+
+            closeImportExportModal();
+        }
+
+        function handleFileSelect(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const content = e.target.result;
+                parseCSV(content);
+            };
+            reader.readAsText(file);
+        }
+
+        function parseCSV(content) {
+            const lines = content.split('\n').map(line => line.trim()).filter(line => line && !line.startsWith('#'));
+
+            if (lines.length < 2) {
+                alert('Invalid CSV file: not enough data');
+                return;
+            }
+
+            // Parse header
+            const header = lines[0].split(',').map(h => h.trim().toLowerCase());
+            const expectedHeader = ['week_start', 'staff_id', 'staff_name', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'];
+
+            // Check if it's a rota data line or day off pattern
+            const rotaData = {};
+            const staffMap = {};
+            const importedDayOffPatterns = {};
+            const importedStaffPreferences = {};
+
+            let parsingDayOffPatterns = false;
+            let parsingStaffPreferences = false;
+
+            for (let i = 1; i < lines.length; i++) {
+                const line = lines[i];
+                if (!line) continue;
+
+                // Check for day off patterns section
+                if (line.toLowerCase().includes('staff_id') && line.toLowerCase().includes('day_off_pattern')) {
+                    parsingDayOffPatterns = true;
+                    parsingStaffPreferences = false;
+                    continue;
+                }
+
+                // Check for staff preferences section
+                if (line.toLowerCase().includes('staff_id') && line.toLowerCase().includes('preferred_days_off')) {
+                    parsingStaffPreferences = true;
+                    parsingDayOffPatterns = false;
+                    continue;
+                }
+
+                if (parsingStaffPreferences) {
+                    // Parse staff preference
+                    const values = parseCSVLine(line);
+                    if (values.length >= 6) {
+                        const staffId = parseInt(values[0]);
+                        const preferredDaysOff = values[1] ? values[1].split(';').filter(d => DAYS.includes(d.trim().toLowerCase())).map(d => d.trim().toLowerCase()) : [];
+                        const shiftPreferences = {
+                            early: parseInt(values[2]) || 3,
+                            mid: parseInt(values[3]) || 3,
+                            late: parseInt(values[4]) || 3,
+                            long: 3,
+                            floating: 3
+                        };
+                        const unavailableDates = values[5] ? values[5].split(';').filter(d => d.match(/^\d{4}-\d{2}-\d{2}$/)) : [];
+                        const notes = values[6] ? values[6].replace(/^"|"$/g, '').replace(/""/g, '"') : '';
+
+                        importedStaffPreferences[staffId] = {
+                            preferredDaysOff,
+                            shiftPreferences,
+                            unavailableDates,
+                            maxConsecutive: 5,
+                            notes
+                        };
+                    }
+                    continue;
+                }
+
+                if (parsingDayOffPatterns) {
+                    // Parse day off pattern
+                    const parts = line.split(',');
+                    if (parts.length >= 2) {
+                        const staffId = parseInt(parts[0]);
+                        const patterns = parts[1].split(';').filter(p => DAYS.includes(p.trim().toLowerCase()));
+                        if (patterns.length > 0) {
+                            importedDayOffPatterns[staffId] = patterns.map(p => p.trim().toLowerCase());
+                        }
+                    }
+                    continue;
+                }
+
+                // Parse rota data
+                const values = parseCSVLine(line);
+                if (values.length < 10) continue;
+
+                const weekStart = values[0];
+                const staffId = parseInt(values[1]);
+                const staffName = values[2].replace(/^"|"$/g, '').replace(/""/g, '"');
+
+                if (!rotaData[weekStart]) {
+                    rotaData[weekStart] = { staff: [], rota: {} };
+                }
+
+                // Track staff
+                if (!staffMap[staffId]) {
+                    staffMap[staffId] = { id: staffId, name: staffName };
+                }
+
+                // Add to week data
+                if (!rotaData[weekStart].staff.find(s => s.id === staffId)) {
+                    rotaData[weekStart].staff.push({ id: staffId, name: staffName });
+                }
+
+                rotaData[weekStart].rota[staffId] = {
+                    mon: values[3] || null,
+                    tue: values[4] || null,
+                    wed: values[5] || null,
+                    thu: values[6] || null,
+                    fri: values[7] || null,
+                    sat: values[8] || null,
+                    sun: values[9] || null
+                };
+
+                // Clean up empty strings to null
+                DAYS.forEach(day => {
+                    if (rotaData[weekStart].rota[staffId][day] === '') {
+                        rotaData[weekStart].rota[staffId][day] = null;
+                    }
+                });
+            }
+
+            // Store for import
+            pendingImportData = {
+                rotaData,
+                staffMap,
+                dayOffPatterns: importedDayOffPatterns,
+                staffPreferences: importedStaffPreferences
+            };
+
+            // Show preview
+            const weeks = Object.keys(rotaData).sort();
+            const staffCount = Object.keys(staffMap).length;
+            const previewContent = document.getElementById('importPreviewContent');
+            previewContent.innerHTML = `
+                <strong>Found:</strong><br>
+                - ${weeks.length} week(s) of data<br>
+                - ${staffCount} staff member(s)<br>
+                - Weeks: ${weeks.slice(0, 5).join(', ')}${weeks.length > 5 ? '...' : ''}<br>
+                - Staff: ${Object.values(staffMap).map(s => s.name).join(', ')}<br>
+                ${Object.keys(importedDayOffPatterns).length > 0 ? `- Day off patterns for ${Object.keys(importedDayOffPatterns).length} staff<br>` : ''}
+                ${Object.keys(importedStaffPreferences).length > 0 ? `- Staff preferences for ${Object.keys(importedStaffPreferences).length} staff` : ''}
+            `;
+            document.getElementById('importPreview').style.display = 'block';
+        }
+
+        function parseCSVLine(line) {
+            // Handle quoted values with commas
+            const result = [];
+            let current = '';
+            let inQuotes = false;
+
+            for (let i = 0; i < line.length; i++) {
+                const char = line[i];
+
+                if (char === '"') {
+                    if (inQuotes && line[i + 1] === '"') {
+                        current += '"';
+                        i++;
+                    } else {
+                        inQuotes = !inQuotes;
+                    }
+                } else if (char === ',' && !inQuotes) {
+                    result.push(current.trim());
+                    current = '';
+                } else {
+                    current += char;
+                }
+            }
+            result.push(current.trim());
+
+            return result;
+        }
+
+        function confirmImport() {
+            if (!pendingImportData) {
+                alert('No data to import');
+                return;
+            }
+
+            if (!confirm('This will replace ALL existing rota data. Are you sure?')) {
+                return;
+            }
+
+            const { rotaData, staffMap, dayOffPatterns: importedDayOffPatterns, staffPreferences: importedStaffPreferences } = pendingImportData;
+
+            // Clear existing data
+            const keysToRemove = [];
+            for (let i = 0; i < localStorage.length; i++) {
+                const key = localStorage.key(i);
+                if (key && key.startsWith('staffRota_')) {
+                    keysToRemove.push(key);
+                }
+            }
+            keysToRemove.forEach(key => localStorage.removeItem(key));
+
+            // Import new data
+            Object.keys(rotaData).forEach(weekKey => {
+                localStorage.setItem('staffRota_' + weekKey, JSON.stringify(rotaData[weekKey]));
+            });
+
+            // Import staff list
+            const staffList = Object.values(staffMap).sort((a, b) => a.id - b.id);
+            localStorage.setItem('staffRota_staff', JSON.stringify(staffList));
+
+            // Import day off patterns
+            if (Object.keys(importedDayOffPatterns).length > 0) {
+                localStorage.setItem('staffRota_dayOffPatterns', JSON.stringify(importedDayOffPatterns));
+                dayOffPatterns = importedDayOffPatterns;
+            }
+
+            // Import staff preferences
+            if (importedStaffPreferences && Object.keys(importedStaffPreferences).length > 0) {
+                localStorage.setItem('staffRota_preferences', JSON.stringify(importedStaffPreferences));
+                staffPreferences = importedStaffPreferences;
+            }
+
+            // Update current state
+            staff = staffList;
+            loadWeekData();
+            renderTable();
+
+            closeImportExportModal();
+            alert('Import successful! ' + Object.keys(rotaData).length + ' week(s) imported.');
+        }
+
         // Initialize
         loadDarkModePreference();
         init();
