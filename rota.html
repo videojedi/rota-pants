@@ -594,7 +594,7 @@
         <div class="action-btns" style="margin-bottom: 15px;">
             <button class="action-btn primary" onclick="generateBestFitRota()">Generate This Week</button>
             <button class="action-btn secondary" onclick="generate10Weeks()" style="background: #8e44ad;">Generate 10 Weeks</button>
-            <button class="action-btn danger" onclick="clearAll()">Clear All</button>
+            <button class="action-btn danger" onclick="openClearModal()">Clear</button>
             <button class="action-btn print" onclick="printRota()">Print Schedule</button>
             <button class="action-btn secondary" onclick="openImportExportModal()" style="background: #2c3e50;">Import/Export CSV</button>
             <button class="action-btn secondary" onclick="openPreferencesModal()" style="background: #16a085;">Staff Preferences</button>
@@ -756,6 +756,32 @@
                 <button onclick="saveCurrentPreference()" style="flex: 1; padding: 12px; background: #27ae60; color: white; border: none; border-radius: 5px; cursor: pointer; font-size: 14px;">Save Preferences</button>
                 <button onclick="closePreferencesModal()" style="flex: 1; padding: 12px; background: #95a5a6; color: white; border: none; border-radius: 5px; cursor: pointer; font-size: 14px;">Cancel</button>
             </div>
+        </div>
+    </div>
+
+    <!-- Clear Data Modal -->
+    <div id="clearModal" style="display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); z-index: 9999; align-items: center; justify-content: center;">
+        <div style="background: var(--card-bg); padding: 25px; border-radius: 10px; max-width: 400px; width: 90%; box-shadow: 0 4px 20px rgba(0,0,0,0.3);">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                <h2 style="margin: 0; color: var(--text-color);">Clear Data</h2>
+                <button onclick="closeClearModal()" style="background: none; border: none; font-size: 24px; cursor: pointer; color: var(--text-muted);">&times;</button>
+            </div>
+
+            <p style="color: var(--text-muted); font-size: 14px; margin-bottom: 20px;">What would you like to clear?</p>
+
+            <div style="display: flex; flex-direction: column; gap: 10px;">
+                <button onclick="clearThisWeek()" class="action-btn secondary" style="width: 100%; padding: 12px;">
+                    Clear This Week Only
+                    <span style="display: block; font-size: 11px; color: var(--text-muted); margin-top: 4px;">Remove all shifts for the current week</span>
+                </button>
+
+                <button onclick="clearAllData()" class="action-btn danger" style="width: 100%; padding: 12px;">
+                    Clear All Data
+                    <span style="display: block; font-size: 11px; color: rgba(255,255,255,0.7); margin-top: 4px;">Remove all weeks, staff names, and preferences</span>
+                </button>
+            </div>
+
+            <button onclick="closeClearModal()" style="width: 100%; margin-top: 15px; padding: 10px; background: none; border: 1px solid var(--border-color); border-radius: 5px; color: var(--text-muted); cursor: pointer;">Cancel</button>
         </div>
     </div>
 
@@ -3071,15 +3097,77 @@
             }
         }
         
-        function clearAll() {
-            if (confirm('Clear all shifts?')) {
+        function openClearModal() {
+            document.getElementById('clearModal').style.display = 'flex';
+        }
+
+        function closeClearModal() {
+            document.getElementById('clearModal').style.display = 'none';
+        }
+
+        function clearThisWeek() {
+            staff.forEach(s => {
+                DAYS.forEach(day => {
+                    rota[s.id][day] = null;
+                });
+            });
+            saveToLocalStorage();
+            renderTable();
+            renderWeekendStats();
+            closeClearModal();
+
+            // Show confirmation
+            const el = document.getElementById('generationResult');
+            el.style.display = 'block';
+            el.className = 'generation-result';
+            el.style.background = '#3498db';
+            el.innerHTML = '<strong>This week cleared.</strong> All shifts for the current week have been removed.';
+        }
+
+        function clearAllData() {
+            if (confirm('Are you sure you want to clear ALL data? This will remove all weeks, staff names, and preferences. This cannot be undone.')) {
+                // Clear all localStorage items for the app
+                const keysToRemove = [];
+                for (let i = 0; i < localStorage.length; i++) {
+                    const key = localStorage.key(i);
+                    if (key && key.startsWith('staffRota')) {
+                        keysToRemove.push(key);
+                    }
+                }
+                keysToRemove.forEach(key => localStorage.removeItem(key));
+
+                // Reset to defaults
+                staff = [
+                    { id: 1, name: 'Staff 1' },
+                    { id: 2, name: 'Staff 2' },
+                    { id: 3, name: 'Staff 3' },
+                    { id: 4, name: 'Staff 4' },
+                    { id: 5, name: 'Staff 5' }
+                ];
+                dayOffPatterns = {};
+                staffPreferences = {};
+
+                // Initialize empty rota
+                rota = {};
                 staff.forEach(s => {
+                    rota[s.id] = {};
                     DAYS.forEach(day => {
                         rota[s.id][day] = null;
                     });
                 });
+
+                // Save and render
                 saveToLocalStorage();
                 renderTable();
+                renderWeekendStats();
+                closeClearModal();
+
+                // Show confirmation
+                const el = document.getElementById('generationResult');
+                el.style.display = 'block';
+                el.className = 'generation-result';
+                el.style.background = '#e74c3c';
+                el.innerHTML = '<strong>All data cleared.</strong> Staff names reset to defaults. All weeks and preferences removed.';
             }
         }
         
