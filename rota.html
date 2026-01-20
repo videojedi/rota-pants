@@ -119,29 +119,66 @@
         }
         .shift-btn {
             padding: 8px 16px;
-            border: 2px solid #3498db;
-            background: var(--card-bg);
-            color: #3498db;
+            border: 2px solid transparent;
             border-radius: 5px;
             cursor: pointer;
             font-size: 14px;
             transition: all 0.2s;
+            font-weight: 500;
         }
-        .shift-btn:hover {
-            background: #3498db;
-            color: #fff;
+        .shift-btn[data-shift="early"] {
+            background: var(--early-bg);
+            color: var(--early-text);
+            border-color: var(--early-text);
         }
-        .shift-btn.selected {
-            background: #3498db;
-            color: #fff;
+        .shift-btn[data-shift="early"]:hover, .shift-btn[data-shift="early"].selected {
+            background: var(--early-text);
+            color: var(--early-bg);
         }
-        .shift-btn.off {
-            border-color: #95a5a6;
-            color: #95a5a6;
+        .shift-btn[data-shift="mid"] {
+            background: var(--mid-bg);
+            color: var(--mid-text);
+            border-color: var(--mid-text);
         }
-        .shift-btn.off:hover, .shift-btn.off.selected {
-            background: #95a5a6;
-            color: #fff;
+        .shift-btn[data-shift="mid"]:hover, .shift-btn[data-shift="mid"].selected {
+            background: var(--mid-text);
+            color: var(--mid-bg);
+        }
+        .shift-btn[data-shift="late"] {
+            background: var(--late-bg);
+            color: var(--late-text);
+            border-color: var(--late-text);
+        }
+        .shift-btn[data-shift="late"]:hover, .shift-btn[data-shift="late"].selected {
+            background: var(--late-text);
+            color: var(--late-bg);
+        }
+        .shift-btn[data-shift="long"] {
+            background: var(--long-bg);
+            color: var(--long-text);
+            border-color: var(--long-text);
+        }
+        .shift-btn[data-shift="long"]:hover, .shift-btn[data-shift="long"].selected {
+            background: var(--long-text);
+            color: var(--long-bg);
+        }
+        .shift-btn[data-shift="floating"] {
+            background: var(--floating-bg);
+            color: var(--floating-text);
+            border-color: var(--floating-text);
+        }
+        .shift-btn[data-shift="floating"]:hover, .shift-btn[data-shift="floating"].selected {
+            background: var(--floating-text);
+            color: var(--floating-bg);
+        }
+        .shift-btn[data-shift="off"] {
+            background: var(--off-bg);
+            color: var(--off-text);
+            border-color: var(--off-text);
+        }
+        .shift-btn[data-shift="off"]:hover, .shift-btn[data-shift="off"].selected {
+            background: var(--off-text);
+            color: var(--off-bg);
         }
         
         .action-btns {
@@ -625,7 +662,7 @@
             <button class="shift-btn" data-shift="late">Late (12:00-20:30)</button>
             <button class="shift-btn" data-shift="long">Long (08:00-20:30)</button>
             <button class="shift-btn" data-shift="floating">Floating (Flexible 7.5hrs)</button>
-            <button class="shift-btn off" data-shift="off">Day Off</button>
+            <button class="shift-btn" data-shift="off">Day Off</button>
         </div>
         <p style="margin: 10px 0 0; color: var(--text-muted); font-size: 13px;">All shifts include 1 hour lunch break. Times shown are working hours.</p>
     </div>
