@@ -1358,12 +1358,8 @@
                 const validShifts = [...validStandardShifts, ...validFloating];
 
                 if (validShifts.length === 0) {
-                    // Can also mark as day off if staff already has enough hours
-                    if (state.getHours(variable.staffId) >= TARGET_HOURS) {
-                        state.assign(variable.staffId, variable.day, 'off');
-                        if (backtrack()) return true;
-                        state.unassign();
-                    }
+                    // No valid shifts available - skip this slot, it will be filled by fillGapsWithFloating
+                    // Don't mark as 'off' here - days off are only planned by planConsecutiveDaysOffWithState
                     return false;
                 }
 
@@ -1387,13 +1383,8 @@
                     }
                 }
 
-                // Try marking as day off if staff has enough hours
-                if (state.getHours(variable.staffId) >= TARGET_HOURS) {
-                    state.assign(variable.staffId, variable.day, 'off');
-                    if (backtrack()) return true;
-                    state.unassign();
-                }
-
+                // Don't mark as 'off' - days off are only planned by planConsecutiveDaysOffWithState
+                // Empty slots will be filled by fillGapsWithFloating
                 return false;
             }
 
@@ -2245,14 +2236,29 @@
             }
         }
 
-        // Fill any remaining empty slots
+        // Fill any remaining empty/off slots for staff who need more hours
         // Weekdays: use floating shifts
         // Weekends: try standard shifts (early/mid/late) since floating not allowed
         function fillGapsWithFloating(state) {
             staff.forEach(s => {
+                // Count how many days off this staff member already has
+                const daysOff = DAYS.filter(d => state.getAssignment(s.id, d) === 'off').length;
+                const currentHours = state.getHours(s.id);
+
                 DAYS.forEach(day => {
                     const current = state.getAssignment(s.id, day);
-                    if (current) return; // Already assigned
+
+                    // Skip if already has a real shift assigned
+                    if (current && current !== 'off') return;
+
+                    // Check if staff needs more hours
+                    const hoursNeeded = TARGET_HOURS - state.getHours(s.id);
+                    if (hoursNeeded <= 0) return; // Already at target
+
+                    // If this slot is 'off' but staff has more than 2 days off, convert to shift
+                    // Staff should only have exactly 2 days off
+                    const currentDaysOff = DAYS.filter(d => state.getAssignment(s.id, d) === 'off').length;
+                    if (current === 'off' && currentDaysOff <= 2) return; // Keep planned days off
 
                     const isWeekend = (day === 'sat' || day === 'sun');
 
@@ -2266,9 +2272,11 @@
                             }
                         }
                     } else {
-                        // Weekdays: use floating
-                        state.assign(s.id, day, 'floating');
-                        console.log(`Filled empty slot for ${s.name} on ${day} with floating shift`);
+                        // Weekdays: use floating (bypass validation since floating always fits)
+                        if (state.getHours(s.id) + SHIFTS.floating.hours <= TARGET_HOURS) {
+                            state.assign(s.id, day, 'floating');
+                            console.log(`Filled slot for ${s.name} on ${day} with floating shift`);
+                        }
                     }
                 });
             });
