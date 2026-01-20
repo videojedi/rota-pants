@@ -2080,18 +2080,27 @@
             const shuffledStaff = rng ? rng.shuffle(staff) : [...staff];
 
             for (const s of shuffledStaff) {
-                // Count existing days off
+                // Count existing days off (from dayOffPatterns)
                 const existingDaysOff = DAYS.filter(d => state.getAssignment(s.id, d) === 'off').length;
-                if (existingDaysOff >= 2) continue;
+                if (existingDaysOff >= 2) continue; // Already has enough days off
+
+                // If staff already has 1 day off, we need to add exactly 1 more (adjacent if possible)
+                const needsOnlyOneMore = existingDaysOff === 1;
 
                 // Score each consecutive pair
                 const pairScores = consecutivePairs.map(pair => {
                     const [day1, day2] = pair;
                     let score = 0;
 
-                    // Can't use if already has assignment
-                    if (state.getAssignment(s.id, day1) && state.getAssignment(s.id, day1) !== 'off') return { pair, score: -Infinity };
-                    if (state.getAssignment(s.id, day2) && state.getAssignment(s.id, day2) !== 'off') return { pair, score: -Infinity };
+                    const day1IsOff = state.getAssignment(s.id, day1) === 'off';
+                    const day2IsOff = state.getAssignment(s.id, day2) === 'off';
+
+                    // Can't use if already has a non-off assignment
+                    if (state.getAssignment(s.id, day1) && !day1IsOff) return { pair, score: -Infinity };
+                    if (state.getAssignment(s.id, day2) && !day2IsOff) return { pair, score: -Infinity };
+
+                    // If we need only 1 more day, one of the pair must already be off
+                    if (needsOnlyOneMore && !day1IsOff && !day2IsOff) return { pair, score: -Infinity };
 
                     // Max 2 staff off per day
                     if (daysOffCount[day1] >= 2) return { pair, score: -Infinity };
@@ -2128,12 +2137,30 @@
 
                 if (bestPair) {
                     const [day1, day2] = bestPair.pair;
-                    state.assign(s.id, day1, 'off');
-                    state.assign(s.id, day2, 'off');
-                    daysOffCount[day1]++;
-                    daysOffCount[day2]++;
+                    // Only assign days that aren't already off
+                    if (state.getAssignment(s.id, day1) !== 'off') {
+                        state.assign(s.id, day1, 'off');
+                        daysOffCount[day1]++;
+                    }
+                    if (state.getAssignment(s.id, day2) !== 'off') {
+                        state.assign(s.id, day2, 'off');
+                        daysOffCount[day2]++;
+                    }
                 }
             }
+
+            // Safety check: verify each staff has exactly 2 days off
+            staff.forEach(s => {
+                const offDays = DAYS.filter(d => state.getAssignment(s.id, d) === 'off');
+                if (offDays.length > 2) {
+                    console.warn(`${s.name} has ${offDays.length} days off, removing extras`);
+                    // Remove extra days off (keep first 2)
+                    for (let i = 2; i < offDays.length; i++) {
+                        state.assignments[s.id][offDays[i]] = null;
+                        delete state.assignments[s.id][offDays[i]];
+                    }
+                }
+            });
         }
 
         // Assign minimum coverage for a day
