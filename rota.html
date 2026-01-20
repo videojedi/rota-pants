@@ -2247,13 +2247,16 @@
 
                 // Staff should have exactly 2 days off
                 // If they have more than 2 OFF days, convert extras to shifts
+                console.log(`${s.name}: ${offDays.length} OFF days [${offDays.join(', ')}], hours: ${state.getHours(s.id)}`);
+
                 if (offDays.length > 2) {
                     // Keep first 2 consecutive off days, convert the rest
-                    // Find which 2 to keep (prefer the originally planned consecutive pair)
-                    const daysToConvert = offDays.slice(2); // Keep first 2, convert rest
+                    const daysToConvert = offDays.slice(2);
+                    console.log(`${s.name}: Converting excess days: [${daysToConvert.join(', ')}]`);
 
                     for (const day of daysToConvert) {
                         const isWeekend = (day === 'sat' || day === 'sun');
+                        const currentHours = state.getHours(s.id);
 
                         if (isWeekend) {
                             // Try standard shifts on weekends
@@ -2266,9 +2269,13 @@
                             }
                         } else {
                             // Weekdays: use floating
-                            if (state.getHours(s.id) + SHIFTS.floating.hours <= TARGET_HOURS) {
+                            const wouldBeHours = currentHours + SHIFTS.floating.hours;
+                            console.log(`${s.name} on ${day}: currentHours=${currentHours}, wouldBe=${wouldBeHours}, target=${TARGET_HOURS}`);
+                            if (wouldBeHours <= TARGET_HOURS) {
                                 state.assign(s.id, day, 'floating');
                                 console.log(`Converted excess OFF to floating for ${s.name} on ${day}`);
+                            } else {
+                                console.log(`Cannot add floating for ${s.name} on ${day}: would exceed target`);
                             }
                         }
                     }
