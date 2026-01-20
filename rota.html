@@ -1094,6 +1094,7 @@
             if (currentHours + SHIFTS[shift].hours > TARGET_HOURS) return false;
 
             // 4. Won't exceed max coverage (floating shifts don't count - they're flexible)
+            // Weekends: strict max 2 staff at any time
             if (shift !== 'floating' && wouldExceedMaxCoverageState(day, shift, state, 2)) return false;
 
             // 5. Won't exceed 5 consecutive work days
@@ -2110,19 +2111,27 @@
                     score -= daysOffCount[day1] * 5;
                     score -= daysOffCount[day2] * 5;
 
-                    // Golden weekend bonus
+                    // Golden weekend handling - only ONE staff can have full Sat+Sun off
+                    // (With 5 staff, max 2 working weekends, we need 3 working each day)
                     const isWeekendPair = (day1 === 'sat' && day2 === 'sun');
                     if (isWeekendPair) {
+                        // Check if someone already has the golden weekend
+                        const existingGoldenWeekend = staff.some(other =>
+                            other.id !== s.id &&
+                            state.getAssignment(other.id, 'sat') === 'off' &&
+                            state.getAssignment(other.id, 'sun') === 'off'
+                        );
+
+                        if (existingGoldenWeekend) {
+                            // Only one staff can have full weekend - block this pair
+                            return { pair, score: -Infinity };
+                        }
+
                         if (s.id === goldenRecipient) {
                             score += 50;
                         } else {
-                            const avg = calculateAvgWeekendShifts(weekendStats);
-                            const staffTotal = weekendStats[s.id]?.total || 0;
-                            if (staffTotal > avg + 1) {
-                                score += 10;
-                            } else if (staffTotal < avg - 1) {
-                                score -= 15;
-                            }
+                            // Non-golden recipients get lower score for weekend pair
+                            score -= 20;
                         }
                     }
 
