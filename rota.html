@@ -2622,6 +2622,12 @@
             // Optimise with swaps
             optimiseWithSwaps(state, weekendStats10Week);
 
+            // Fill gaps with floating shifts
+            fillGapsWithFloating(state);
+
+            // Mark remaining blanks as days off
+            markRemainingBlanksAsOff(state);
+
             // Apply state to rota
             rota = state.toRota();
         }
