@@ -2358,7 +2358,14 @@
                 const currentHours = state.getHours(s.id);
                 console.log(`${s.name}: ${currentHours}/${TARGET_HOURS} hours`);
 
-                // Mark blanks as off regardless of hours - if slot is empty, it's a day off
+                // Only mark blanks as off if staff has reached target hours
+                // If they haven't, leave blank so it's visible as an issue
+                if (currentHours < TARGET_HOURS) {
+                    console.warn(`${s.name} only has ${currentHours} hours - not marking blanks as OFF`);
+                    return;
+                }
+
+                // Mark blanks as off for staff at target hours
                 DAYS.forEach(day => {
                     const current = state.getAssignment(s.id, day);
                     if (!current) {
