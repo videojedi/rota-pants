@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+  <!-- Skull -->
+  <ellipse cx="32" cy="22" rx="18" ry="16" fill="#f5f5f5" stroke="#333" stroke-width="2"/>
+  <!-- Eye sockets -->
+  <ellipse cx="25" cy="20" rx="5" ry="6" fill="#333"/>
+  <ellipse cx="39" cy="20" rx="5" ry="6" fill="#333"/>
+  <!-- Nose -->
+  <path d="M32 26 L29 32 L35 32 Z" fill="#333"/>
+  <!-- Teeth -->
+  <rect x="23" y="34" width="4" height="6" rx="1" fill="#f5f5f5" stroke="#333" stroke-width="1"/>
+  <rect x="28" y="34" width="4" height="6" rx="1" fill="#f5f5f5" stroke="#333" stroke-width="1"/>
+  <rect x="33" y="34" width="4" height="6" rx="1" fill="#f5f5f5" stroke="#333" stroke-width="1"/>
+  <rect x="38" y="34" width="4" height="6" rx="1" fill="#f5f5f5" stroke="#333" stroke-width="1"/>
+  <!-- Spine/body hint -->
+  <rect x="30" y="42" width="4" height="6" rx="1" fill="#f5f5f5" stroke="#333" stroke-width="1.5"/>
+  <rect x="30" y="50" width="4" height="6" rx="1" fill="#f5f5f5" stroke="#333" stroke-width="1.5"/>
+  <!-- Winking eye sparkle -->
+  <path d="M23 18 L27 22 M23 22 L27 18" stroke="#f5f5f5" stroke-width="2" stroke-linecap="round"/>
+</svg>
