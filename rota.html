@@ -620,6 +620,7 @@
         <span id="weekDisplay" style="font-size: 18px; font-weight: bold; margin: 0 15px; color: var(--text-color);"></span>
         <button onclick="changeWeek(1)" style="padding: 5px 10px; cursor: pointer; background: var(--header-bg); color: #fff; border: none; border-radius: 4px;">Next &gt;</button>
         <button onclick="goToThisWeek()" style="padding: 5px 10px; cursor: pointer; background: #27ae60; color: #fff; border: none; border-radius: 4px; margin-left: 15px;">This Week</button>
+        <button onclick="goToNextGapWeek()" style="padding: 5px 10px; cursor: pointer; background: #e67e22; color: #fff; border: none; border-radius: 4px; margin-left: 10px;">Next Gap</button>
     </div>
     
     <div class="info-bar">
@@ -1719,6 +1720,85 @@
             loadWeekData();
             updateWeekDisplay();
             renderTable();
+        }
+
+        function goToNextGapWeek() {
+            // Save current week before changing
+            saveToLocalStorage();
+
+            // Search up to 52 weeks ahead for a week with gaps
+            const startWeek = new Date(currentWeekStart);
+            const maxWeeks = 52;
+
+            for (let i = 1; i <= maxWeeks; i++) {
+                const checkWeek = new Date(startWeek);
+                checkWeek.setDate(checkWeek.getDate() + (i * 7));
+                const weekKey = getWeekKey(checkWeek);
+                const saved = localStorage.getItem('staffRota_' + weekKey);
+
+                if (!saved) {
+                    // Empty week = has gaps
+                    currentWeekStart = checkWeek;
+                    loadWeekData();
+                    updateWeekDisplay();
+                    renderTable();
+                    return;
+                }
+
+                try {
+                    const data = JSON.parse(saved);
+                    if (weekHasGaps(data.rota)) {
+                        currentWeekStart = checkWeek;
+                        loadWeekData();
+                        updateWeekDisplay();
+                        renderTable();
+                        return;
+                    }
+                } catch (e) {
+                    // Invalid data = treat as gap
+                    currentWeekStart = checkWeek;
+                    loadWeekData();
+                    updateWeekDisplay();
+                    renderTable();
+                    return;
+                }
+            }
+
+            // No gaps found in next 52 weeks
+            alert('No weeks with gaps found in the next 52 weeks!');
+        }
+
+        function weekHasGaps(weekRota) {
+            // Check if any staff member has blank (unfilled) shifts
+            for (const staffId of Object.keys(weekRota)) {
+                for (const day of DAYS) {
+                    const shift = weekRota[staffId]?.[day];
+                    if (!shift || shift === '' || shift === null) {
+                        return true;
+                    }
+                }
+            }
+
+            // Check for coverage gaps (times with no staff)
+            for (const day of DAYS) {
+                for (let t = OPEN_TIME; t < CLOSE_TIME; t += 0.5) {
+                    let count = 0;
+                    for (const staffId of Object.keys(weekRota)) {
+                        const shift = weekRota[staffId]?.[day];
+                        if (shift && shift !== 'off') {
+                            const shiftDef = SHIFTS[shift];
+                            if (shiftDef && t >= shiftDef.start && t < shiftDef.end) {
+                                count++;
+                            }
+                        }
+                    }
+                    if (count === 0) {
+                        return true;
+                    }
+                }
+            }
+
+            return false;
         }
         
         function loadWeekData() {
