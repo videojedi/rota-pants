@@ -619,6 +619,7 @@
         <button onclick="changeWeek(-1)" style="padding: 5px 10px; cursor: pointer; background: var(--header-bg); color: #fff; border: none; border-radius: 4px;">&lt; Prev</button>
         <span id="weekDisplay" style="font-size: 18px; font-weight: bold; margin: 0 15px; color: var(--text-color);"></span>
         <button onclick="changeWeek(1)" style="padding: 5px 10px; cursor: pointer; background: var(--header-bg); color: #fff; border: none; border-radius: 4px;">Next &gt;</button>
+        <button onclick="goToThisWeek()" style="padding: 5px 10px; cursor: pointer; background: #27ae60; color: #fff; border: none; border-radius: 4px; margin-left: 15px;">This Week</button>
     </div>
     
     <div class="info-bar">
@@ -1697,11 +1698,24 @@
         function changeWeek(direction) {
             // Save current week before changing
             saveToLocalStorage();
-            
+
             // Move week
             currentWeekStart.setDate(currentWeekStart.getDate() + (direction * 7));
-            
+
             // Load new week's data
+            loadWeekData();
+            updateWeekDisplay();
+            renderTable();
+        }
+
+        function goToThisWeek() {
+            // Save current week before changing
+            saveToLocalStorage();
+
+            // Go to the Monday of the current week
+            currentWeekStart = getMonday(new Date());
+
+            // Load this week's data
             loadWeekData();
             updateWeekDisplay();
             renderTable();
