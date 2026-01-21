@@ -71,6 +71,7 @@
         let dayOffPatterns = {}; // Persistent day off patterns: { staffId: ['mon', 'tue', ...] }
         let staffPreferences = {}; // Staff preferences: { staffId: { preferredDaysOff, shiftPreferences, unavailableDates, notes } }
         let rng = null; // Seeded random number generator instance
+        let selectedAlgorithm = 'v4'; // Algorithm selector: 'v3' (backtracking) or 'v4' (5-week rotation)
 
         // Coverage weights for prioritising certain days/times (default: weekends slightly higher)
         const coverageWeights = {
@@ -749,74 +750,205 @@
         }
         
         function renderWeekendStats() {
-            const container = document.getElementById('weekendStatsContainer');
-            container.innerHTML = '';
-            
-            const stats = getWeekendStatsForPeriod(10);
-            const avgTotal = getAverageWeekendShifts10Week();
-            
-            // Include current week's planned shifts and days off
+            // Now renders shift distribution instead of just weekend stats
+            renderShiftDistribution();
+        }
+
+        function renderShiftDistribution() {
+            const tbody = document.getElementById('shiftDistributionBody');
+            if (!tbody) return;
+            tbody.innerHTML = '';
+
+            // Get shift distribution for last 5 weeks
+            const distribution = getShiftDistributionForPeriod(5);
+
+            // Calculate team totals for averages
+            const teamTotals = { early: 0, mid: 0, late: 0, floating: 0, long: 0, total: 0, weekends: 0 };
+
+            staff.forEach(s => {
+                const dist = distribution[s.id];
+                teamTotals.early += dist.early;
+                teamTotals.mid += dist.mid;
+                teamTotals.late += dist.late;
+                teamTotals.floating += dist.floating;
+                teamTotals.long += dist.long;
+                teamTotals.total += dist.total;
+                teamTotals.weekends += dist.weekends;
+            });
+
+            const avgTotal = staff.length > 0 ? teamTotals.total / staff.length : 0;
+            const avgWeekends = staff.length > 0 ? teamTotals.weekends / staff.length : 0;
+
+            // Render each staff row
+            staff.forEach(s => {
+                const dist = distribution[s.id];
+                const tr = document.createElement('tr');
+
+                // Determine if totals are balanced
+                const totalDiff = dist.total - avgTotal;
+                const weekendDiff = dist.weekends - avgWeekends;
+
+                let totalColor = 'var(--text-color)';
+                if (totalDiff > 3) totalColor = '#e74c3c';
+                else if (totalDiff < -3) totalColor = '#3498db';
+
+                let weekendColor = 'var(--text-color)';
+                if (weekendDiff > 2) weekendColor = '#e74c3c';
+                else if (weekendDiff < -2) weekendColor = '#3498db';
+
+                tr.innerHTML = `
+                    <td style="padding: 10px; border: 1px solid var(--border-color); font-weight: bold; background: var(--staff-row-bg);">${s.name}</td>
+                    <td style="padding: 10px; border: 1px solid var(--border-color); text-align: center; background: var(--early-bg); color: var(--early-text); font-weight: bold;">${dist.early}</td>
+                    <td style="padding: 10px; border: 1px solid var(--border-color); text-align: center; background: var(--mid-bg); color: var(--mid-text); font-weight: bold;">${dist.mid}</td>
+                    <td style="padding: 10px; border: 1px solid var(--border-color); text-align: center; background: var(--late-bg); color: var(--late-text); font-weight: bold;">${dist.late}</td>
+                    <td style="padding: 10px; border: 1px solid var(--border-color); text-align: center; background: var(--floating-bg); color: var(--floating-text); font-weight: bold;">${dist.floating}</td>
+                    <td style="padding: 10px; border: 1px solid var(--border-color); text-align: center; background: var(--long-bg); color: var(--long-text); font-weight: bold;">${dist.long}</td>
+                    <td style="padding: 10px; border: 1px solid var(--border-color); text-align: center; font-weight: bold; color: ${totalColor};">${dist.total}</td>
+                    <td style="padding: 10px; border: 1px solid var(--border-color); text-align: center; font-weight: bold; color: ${weekendColor};">${dist.weekends}</td>
+                `;
+                tbody.appendChild(tr);
+            });
+
+            // Add team average row
+            const avgRow = document.createElement('tr');
+            avgRow.style.background = 'var(--header-bg)';
+            avgRow.style.color = '#fff';
+            avgRow.innerHTML = `
+                <td style="padding: 10px; border: 1px solid var(--border-color); font-weight: bold;">Team Average</td>
+                <td style="padding: 10px; border: 1px solid var(--border-color); text-align: center;">${(teamTotals.early / staff.length).toFixed(1)}</td>
+                <td style="padding: 10px; border: 1px solid var(--border-color); text-align: center;">${(teamTotals.mid / staff.length).toFixed(1)}</td>
+                <td style="padding: 10px; border: 1px solid var(--border-color); text-align: center;">${(teamTotals.late / staff.length).toFixed(1)}</td>
+                <td style="padding: 10px; border: 1px solid var(--border-color); text-align: center;">${(teamTotals.floating / staff.length).toFixed(1)}</td>
+                <td style="padding: 10px; border: 1px solid var(--border-color); text-align: center;">${(teamTotals.long / staff.length).toFixed(1)}</td>
+                <td style="padding: 10px; border: 1px solid var(--border-color); text-align: center;">${avgTotal.toFixed(1)}</td>
+                <td style="padding: 10px; border: 1px solid var(--border-color); text-align: center;">${avgWeekends.toFixed(1)}</td>
+            `;
+            tbody.appendChild(avgRow);
+        }
+
+        function getShiftDistributionForPeriod(weeks) {
+            const distribution = {};
+
+            // Initialize distribution for each staff
+            staff.forEach(s => {
+                distribution[s.id] = {
+                    early: 0,
+                    mid: 0,
+                    late: 0,
+                    floating: 0,
+                    long: 0,
+                    total: 0,
+                    weekends: 0
+                };
+            });
+
+            // Get week keys for the period (going backwards from current week)
+            // Start from PREVIOUS week to avoid double-counting current week
+            const weekKeys = [];
+            const tempDate = new Date(currentWeekStart);
+            tempDate.setDate(tempDate.getDate() - 7); // Start from previous week
+
+            for (let i = 0; i < weeks - 1; i++) { // weeks-1 because we'll add current week separately
+                weekKeys.push(getWeekKey(tempDate));
+                tempDate.setDate(tempDate.getDate() - 7);
+            }
+
+            // Count shifts from saved weeks (excluding current week)
+            weekKeys.forEach(weekKey => {
+                const saved = localStorage.getItem('staffRota_' + weekKey);
+                if (saved) {
+                    try {
+                        const data = JSON.parse(saved);
+                        if (data.rota) {
+                            staff.forEach(s => {
+                                if (data.rota[s.id]) {
+                                    DAYS.forEach((day, dayIdx) => {
+                                        const shift = data.rota[s.id][day];
+                                        if (shift && shift !== 'off') {
+                                            distribution[s.id][shift]++;
+                                            distribution[s.id].total++;
+
+                                            // Count weekend shifts (Sat=5, Sun=6)
+                                            if (dayIdx === 5 || dayIdx === 6) {
+                                                distribution[s.id].weekends++;
+                                            }
+                                        }
+                                    });
+                                }
+                            });
+                        }
+                    } catch (e) {}
+                }
+            });
+
+            // Include current week's data from the live rota object (not localStorage)
             staff.forEach(s => {
                 if (rota[s.id]) {
-                    if (rota[s.id].sat && rota[s.id].sat !== 'off') {
-                        stats[s.id].sat++;
-                        stats[s.id].total++;
-                    }
-                    if (rota[s.id].sun && rota[s.id].sun !== 'off') {
-                        stats[s.id].sun++;
-                        stats[s.id].total++;
-                    }
-                    // Count days off for current week
-                    DAYS.forEach(day => {
-                        if (rota[s.id][day] === 'off') {
-                            stats[s.id].daysOff++;
+                    DAYS.forEach((day, dayIdx) => {
+                        const shift = rota[s.id][day];
+                        if (shift && shift !== 'off') {
+                            distribution[s.id][shift]++;
+                            distribution[s.id].total++;
+
+                            if (dayIdx === 5 || dayIdx === 6) {
+                                distribution[s.id].weekends++;
+                            }
                         }
                     });
                 }
             });
-            
-            // Calculate average days off
-            let totalDaysOff = 0;
-            staff.forEach(s => {
-                totalDaysOff += stats[s.id].daysOff;
-            });
-            const avgDaysOff = staff.length > 0 ? totalDaysOff / staff.length : 0;
-            
-            staff.forEach(s => {
-                const stat = stats[s.id];
-                const div = document.createElement('div');
-                div.style.cssText = 'background: var(--staff-row-bg); padding: 10px; border-radius: 5px; text-align: center;';
 
-                let statusColor = '#27ae60';
-                let statusText = 'Balanced';
-                if (stat.total > avgTotal + 2) {
-                    statusColor = '#e74c3c';
-                    statusText = 'Above avg';
-                } else if (stat.total < avgTotal - 2) {
-                    statusColor = '#3498db';
-                    statusText = 'Below avg';
-                }
-
-                div.innerHTML = `
-                    <div style="font-weight: bold; margin-bottom: 5px;">${s.name}</div>
-                    <div style="font-size: 24px; color: ${statusColor}; font-weight: bold;">${stat.total}</div>
-                    <div style="font-size: 10px; color: ${statusColor}; margin-bottom: 4px;">${statusText}</div>
-                    <div style="font-size: 11px; color: var(--text-muted);">Sat: ${stat.sat} | Sun: ${stat.sun}</div>
-                `;
-                container.appendChild(div);
-            });
-
-            // Add average indicator
-            const avgDiv = document.createElement('div');
-            avgDiv.style.cssText = 'background: var(--header-bg); color: #fff; padding: 10px; border-radius: 5px; text-align: center;';
-            avgDiv.innerHTML = `
-                <div style="font-weight: bold; margin-bottom: 5px;">Team Average</div>
-                <div style="font-size: 24px; font-weight: bold;">${avgTotal.toFixed(1)}</div>
-                <div style="font-size: 11px; opacity: 0.8;">weekend shifts</div>
-            `;
-            container.appendChild(avgDiv);
+            return distribution;
         }
-        
+
+        function getShiftDistributionForPrintedWeeks(weekDates) {
+            const distribution = {};
+
+            // Initialize distribution for each staff
+            staff.forEach(s => {
+                distribution[s.id] = {
+                    early: 0,
+                    mid: 0,
+                    late: 0,
+                    floating: 0,
+                    long: 0,
+                    total: 0,
+                    weekends: 0
+                };
+            });
+
+            // Count shifts from each week in the printed range
+            weekDates.forEach(weekStart => {
+                const weekKey = getWeekKey(weekStart);
+                const saved = localStorage.getItem('staffRota_' + weekKey);
+                if (saved) {
+                    try {
+                        const data = JSON.parse(saved);
+                        if (data.rota) {
+                            staff.forEach(s => {
+                                if (data.rota[s.id]) {
+                                    DAYS.forEach((day, dayIdx) => {
+                                        const shift = data.rota[s.id][day];
+                                        if (shift && shift !== 'off') {
+                                            distribution[s.id][shift]++;
+                                            distribution[s.id].total++;
+
+                                            // Count weekend shifts (Sat=5, Sun=6)
+                                            if (dayIdx === 5 || dayIdx === 6) {
+                                                distribution[s.id].weekends++;
+                                            }
+                                        }
+                                    });
+                                }
+                            });
+                        }
+                    } catch (e) {}
+                }
+            });
+
+            return distribution;
+        }
+
         function getNextMonday() {
             const today = new Date();
             const dayOfWeek = today.getDay();
@@ -1023,6 +1155,9 @@
             // Load staff preferences
             loadStaffPreferences();
 
+            // Load algorithm preference
+            loadAlgorithmPreference();
+
             // Load current week's data
             loadWeekData();
 
@@ -1030,6 +1165,38 @@
             renderTable();
             renderTimeGrid();
             setupShiftButtons();
+        }
+
+        function loadAlgorithmPreference() {
+            const saved = localStorage.getItem('staffRota_algorithm');
+            if (saved && (saved === 'v3' || saved === 'v4')) {
+                selectedAlgorithm = saved;
+            }
+            // Update UI
+            const select = document.getElementById('algorithmSelect');
+            if (select) {
+                select.value = selectedAlgorithm;
+            }
+            updateAlgorithmUI();
+        }
+
+        function changeAlgorithm(value) {
+            selectedAlgorithm = value;
+            localStorage.setItem('staffRota_algorithm', value);
+            updateAlgorithmUI();
+        }
+
+        function updateAlgorithmUI() {
+            const infoEl = document.getElementById('algorithmInfo');
+            const descEl = document.getElementById('algorithmDescription');
+
+            if (selectedAlgorithm === 'v4') {
+                if (infoEl) infoEl.textContent = '5-week rotation with consistent shift blocks';
+                if (descEl) descEl.textContent = 'V4: Fixed 5-week rotation. Weekend workers do E/L Sat-Sun + Float weekdays. Non-weekend staff get one shift type (E/M/L) all week. Requires exactly 5 staff.';
+            } else {
+                if (infoEl) infoEl.textContent = 'Flexible scheduling with weekend balancing';
+                if (descEl) descEl.textContent = 'V3: Backtracking solver with flexible scheduling. Coverage: 1-2 staff (max 3 during 08:00-16:30). Each person works exactly 37.5 hours.';
+            }
         }
         
         function saveToLocalStorage() {
@@ -1374,7 +1541,19 @@
         }
         
         function generateBestFitRota() {
-            console.log('Starting multi-pass rota generation...');
+            // Dispatch to selected algorithm
+            if (selectedAlgorithm === 'v4') {
+                generateRotaV4();
+            } else {
+                generateRotaV3();
+            }
+        }
+
+        // =============================================
+        // ALGORITHM V3: Backtracking Solver (Original)
+        // =============================================
+        function generateRotaV3() {
+            console.log('Starting V3 multi-pass rota generation...');
 
             // Initialize seeded RNG for reproducibility
             rng = new SeededRandom(getWeekSeed(currentWeekStart));
@@ -1427,6 +1606,348 @@
             saveToLocalStorage();
             renderTable();
             renderWeekendStats();
+        }
+
+        // =============================================
+        // ALGORITHM V4: 5-Week Rotation System
+        // =============================================
+        // Fixed rotation where staff work consistent shift blocks
+        // Weekend workers do E/L on Sat-Sun, Float on weekdays
+        // Non-weekend workers get one shift type all week
+
+        const V4_WEEKEND_PAIRS = [
+            // Each pair: [early_worker, late_worker] for weekend
+            // Over 5 weeks, each person works exactly 2 weekends
+            [0, 1], // Week 1: Staff 0 (E), Staff 1 (L)
+            [2, 3], // Week 2: Staff 2 (E), Staff 3 (L)
+            [4, 0], // Week 3: Staff 4 (E), Staff 0 (L)
+            [1, 2], // Week 4: Staff 1 (E), Staff 2 (L)
+            [3, 4]  // Week 5: Staff 3 (E), Staff 4 (L)
+        ];
+
+        const V4_DAYS_OFF_OPTIONS = [
+            [0, 1], // Mon-Tue (indices)
+            [3, 4]  // Thu-Fri (indices)
+        ];
+
+        // Track shift history for variety balancing across the cycle
+        let v4ShiftHistory = {}; // { staffId: { early: 0, mid: 0, late: 0 } }
+
+        function getV4WeekNumber(weekStart) {
+            // Calculate which week (1-5) in the cycle this is
+            // Use a reference point to determine cycle position
+            const referenceDate = new Date('2026-01-20'); // A known Monday
+            const diffTime = weekStart.getTime() - referenceDate.getTime();
+            const diffWeeks = Math.floor(diffTime / (7 * 24 * 60 * 60 * 1000));
+            return ((diffWeeks % 5) + 5) % 5 + 1; // 1-5
+        }
+
+        function loadV4ShiftHistory() {
+            const saved = localStorage.getItem('staffRota_v4History');
+            if (saved) {
+                try {
+                    v4ShiftHistory = JSON.parse(saved);
+                } catch (e) {
+                    v4ShiftHistory = {};
+                }
+            }
+            // Ensure all staff have entries
+            staff.forEach(s => {
+                if (!v4ShiftHistory[s.id]) {
+                    v4ShiftHistory[s.id] = { early: 0, mid: 0, late: 0 };
+                }
+            });
+        }
+
+        function saveV4ShiftHistory() {
+            localStorage.setItem('staffRota_v4History', JSON.stringify(v4ShiftHistory));
+        }
+
+        function resetV4ShiftHistory() {
+            v4ShiftHistory = {};
+            staff.forEach(s => {
+                v4ShiftHistory[s.id] = { early: 0, mid: 0, late: 0 };
+            });
+            saveV4ShiftHistory();
+        }
+
+        function getPermutations(arr) {
+            if (arr.length <= 1) return [arr];
+            const result = [];
+            for (let i = 0; i < arr.length; i++) {
+                const current = arr[i];
+                const remaining = [...arr.slice(0, i), ...arr.slice(i + 1)];
+                for (const perm of getPermutations(remaining)) {
+                    result.push([current, ...perm]);
+                }
+            }
+            return result;
+        }
+
+        function generateRotaV4() {
+            console.log('Starting V4 5-week rotation generation...');
+
+            if (staff.length !== 5) {
+                alert('V4 algorithm requires exactly 5 staff members.');
+                return;
+            }
+
+            loadV4ShiftHistory();
+
+            const weekNum = getV4WeekNumber(currentWeekStart);
+            console.log(`Generating week ${weekNum} of 5-week cycle`);
+
+            // Build the week schedule
+            const schedule = buildV4WeekSchedule(weekNum);
+
+            // Convert to rota format
+            rota = {};
+            staff.forEach((s, idx) => {
+                rota[s.id] = {};
+                DAYS.forEach((day, dayIdx) => {
+                    const shift = schedule[idx][dayIdx];
+                    rota[s.id][day] = shift === 'OFF' ? 'off' : shift.toLowerCase();
+                });
+            });
+
+            // Save history
+            saveV4ShiftHistory();
+
+            // Validate and show results
+            const result = validateRotaV4();
+            showGenerationResultV4(result, weekNum);
+
+            // Save and render
+            saveToLocalStorage();
+            renderTable();
+            renderWeekendStats();
+        }
+
+        function buildV4WeekSchedule(weekNum) {
+            // Initialize empty schedule for all 5 staff, 7 days
+            const schedule = [];
+            for (let i = 0; i < 5; i++) {
+                schedule.push([null, null, null, null, null, null, null]);
+            }
+
+            // Step 2: Identify weekend workers
+            const pairIndex = weekNum - 1;
+            const weekendPair = V4_WEEKEND_PAIRS[pairIndex];
+            const weekendWorkerEarly = weekendPair[0]; // Does Early on weekend
+            const weekendWorkerLate = weekendPair[1];  // Does Late on weekend
+
+            const nonWeekendStaff = [];
+            for (let i = 0; i < 5; i++) {
+                if (i !== weekendWorkerEarly && i !== weekendWorkerLate) {
+                    nonWeekendStaff.push(i);
+                }
+            }
+
+            // Step 3: Assign weekend shifts
+            // Non-weekend staff: OFF on Sat-Sun
+            nonWeekendStaff.forEach(idx => {
+                schedule[idx][5] = 'OFF'; // Saturday
+                schedule[idx][6] = 'OFF'; // Sunday
+            });
+
+            // Weekend workers: E or L on Sat-Sun
+            schedule[weekendWorkerEarly][5] = 'early';
+            schedule[weekendWorkerEarly][6] = 'early';
+            schedule[weekendWorkerLate][5] = 'late';
+            schedule[weekendWorkerLate][6] = 'late';
+
+            // Step 4: Assign consecutive days off for weekend workers
+            const offPatternIndex = (weekNum - 1) % 2;
+
+            const daysOff1 = V4_DAYS_OFF_OPTIONS[offPatternIndex];
+            schedule[weekendWorkerEarly][daysOff1[0]] = 'OFF';
+            schedule[weekendWorkerEarly][daysOff1[1]] = 'OFF';
+
+            const daysOff2 = V4_DAYS_OFF_OPTIONS[1 - offPatternIndex];
+            schedule[weekendWorkerLate][daysOff2[0]] = 'OFF';
+            schedule[weekendWorkerLate][daysOff2[1]] = 'OFF';
+
+            // Step 5: Weekend workers get FLOAT on remaining weekdays
+            [weekendWorkerEarly, weekendWorkerLate].forEach(idx => {
+                for (let day = 0; day < 5; day++) { // Mon-Fri
+                    if (schedule[idx][day] === null) {
+                        schedule[idx][day] = 'floating';
+                    }
+                }
+            });
+
+            // Step 6: Determine shift preferences for this week
+            let earlyPreferenceStaff, latePreferenceStaff;
+            if (weekNum % 2 === 1) { // Odd weeks: 1, 3, 5
+                earlyPreferenceStaff = [0, 2, 4];
+                latePreferenceStaff = [1, 3];
+            } else { // Even weeks: 2, 4
+                earlyPreferenceStaff = [1, 3];
+                latePreferenceStaff = [0, 2, 4];
+            }
+
+            // Step 7: Assign consistent shift blocks to non-weekend staff
+            const shiftsNeeded = ['early', 'late', 'mid'];
+
+            // Scoring function
+            function getAssignmentScore(staffIdx, shiftType) {
+                const staffId = staff[staffIdx].id;
+                let score = 100;
+
+                // Variety bonus (primary factor)
+                const historyCount = v4ShiftHistory[staffId]?.[shiftType] || 0;
+                if (historyCount === 0) {
+                    score += 50;
+                } else if (historyCount === 1) {
+                    score += 10;
+                } else {
+                    score -= historyCount * 30;
+                }
+
+                // Preference bonus (secondary, breaks ties)
+                if (shiftType === 'early' && earlyPreferenceStaff.includes(staffIdx)) {
+                    score += 5;
+                } else if (shiftType === 'late' && latePreferenceStaff.includes(staffIdx)) {
+                    score += 5;
+                } else if (shiftType === 'mid') {
+                    score += 2;
+                }
+
+                return score;
+            }
+
+            // Find optimal assignment via permutation search
+            const permutations = getPermutations(nonWeekendStaff);
+            let bestAssignment = null;
+            let bestTotalScore = -Infinity;
+
+            for (const perm of permutations) {
+                let totalScore = 0;
+                for (let i = 0; i < 3; i++) {
+                    totalScore += getAssignmentScore(perm[i], shiftsNeeded[i]);
+                }
+                if (totalScore > bestTotalScore) {
+                    bestTotalScore = totalScore;
+                    bestAssignment = {};
+                    for (let i = 0; i < 3; i++) {
+                        bestAssignment[perm[i]] = shiftsNeeded[i];
+                    }
+                }
+            }
+
+            // Apply the assignment
+            for (const [staffIdx, shiftType] of Object.entries(bestAssignment)) {
+                const idx = parseInt(staffIdx);
+                const staffId = staff[idx].id;
+
+                // Assign same shift to all 5 weekdays
+                for (let day = 0; day < 5; day++) {
+                    schedule[idx][day] = shiftType;
+                }
+
+                // Update history
+                if (!v4ShiftHistory[staffId]) {
+                    v4ShiftHistory[staffId] = { early: 0, mid: 0, late: 0 };
+                }
+                v4ShiftHistory[staffId][shiftType]++;
+            }
+
+            return schedule;
+        }
+
+        function validateRotaV4() {
+            const errors = [];
+            const warnings = [];
+
+            // 1. Each person works exactly 5 days (37.5 hours)
+            staff.forEach(s => {
+                const hours = calculateStaffHours(s.id);
+                if (hours !== TARGET_HOURS) {
+                    errors.push(`${s.name} has ${hours} hours, expected ${TARGET_HOURS}`);
+                }
+
+                const offDays = DAYS.filter(d => rota[s.id]?.[d] === 'off').length;
+                if (offDays !== 2) {
+                    errors.push(`${s.name} has ${offDays} days off, expected 2`);
+                }
+            });
+
+            // 2. Days off are consecutive
+            staff.forEach(s => {
+                const offIndices = [];
+                DAYS.forEach((d, idx) => {
+                    if (rota[s.id]?.[d] === 'off') offIndices.push(idx);
+                });
+                if (offIndices.length === 2) {
+                    const diff = offIndices[1] - offIndices[0];
+                    if (diff !== 1 && !(offIndices[0] === 5 && offIndices[1] === 6)) {
+                        errors.push(`${s.name} days off not consecutive`);
+                    }
+                }
+            });
+
+            // 3. Weekend coverage: exactly 2 (1 E + 1 L)
+            ['sat', 'sun'].forEach(day => {
+                let earlyCount = 0, lateCount = 0, floatCount = 0;
+                staff.forEach(s => {
+                    const shift = rota[s.id]?.[day];
+                    if (shift === 'early') earlyCount++;
+                    if (shift === 'late') lateCount++;
+                    if (shift === 'floating') floatCount++;
+                });
+
+                if (earlyCount !== 1 || lateCount !== 1) {
+                    errors.push(`${day} should have 1 Early + 1 Late, got ${earlyCount}E + ${lateCount}L`);
+                }
+                if (floatCount > 0) {
+                    errors.push(`${day} has ${floatCount} float shifts, expected 0`);
+                }
+            });
+
+            // 4. Weekday coverage: 1-3 E/M/L shifts
+            ['mon', 'tue', 'wed', 'thu', 'fri'].forEach(day => {
+                let coverage = 0;
+                staff.forEach(s => {
+                    const shift = rota[s.id]?.[day];
+                    if (shift === 'early' || shift === 'mid' || shift === 'late') {
+                        coverage++;
+                    }
+                });
+                if (coverage < 1 || coverage > 3) {
+                    errors.push(`${day} has ${coverage} coverage shifts, expected 1-3`);
+                }
+            });
+
+            return { errors, warnings };
+        }
+
+        function showGenerationResultV4(result, weekNum) {
+            const el = document.getElementById('generationResult');
+            el.style.display = 'block';
+
+            if (result.errors.length > 0) {
+                el.className = 'generation-result generation-error';
+                el.innerHTML = `
+                    <details>
+                        <summary>V4 Week ${weekNum}/5: ${result.errors.length} error(s) - click for details</summary>
+                        <div class="details-list">
+                            ${result.errors.map(e => '• ' + e).join('<br>')}
+                        </div>
+                    </details>`;
+            } else {
+                el.className = 'generation-result generation-success';
+                el.innerHTML = `
+                    <details>
+                        <summary>V4 Week ${weekNum}/5 generated successfully - click for details</summary>
+                        <div class="details-list">
+                            • 5-week rotation system<br>
+                            • Weekend: 1 Early + 1 Late staff<br>
+                            • Non-weekend staff: consistent shift blocks (E/M/L all week)<br>
+                            • Weekend workers: Float on weekdays<br>
+                            • All staff at ${TARGET_HOURS}hrs with 2 consecutive days off
+                        </div>
+                    </details>`;
+            }
         }
 
         // Plan consecutive days off using state object
@@ -1951,16 +2472,16 @@
             return score;
         }
         
-        function generate10Weeks() {
-            if (!confirm('This will generate rotas for 10 weeks starting from the current week. Any existing rotas for these weeks will be overwritten. Continue?')) {
+        function generate5Weeks() {
+            if (!confirm('This will generate rotas for 5 weeks starting from the current week. Any existing rotas for these weeks will be overwritten. Continue?')) {
                 return;
             }
-            
+
             const startWeek = new Date(currentWeekStart);
             const results = [];
-            
+
             // Generate each week
-            for (let w = 0; w < 10; w++) {
+            for (let w = 0; w < 5; w++) {
                 // Set current week
                 currentWeekStart = new Date(startWeek);
                 currentWeekStart.setDate(startWeek.getDate() + (w * 7));
@@ -1982,12 +2503,12 @@
                 saveToLocalStorage();
                 
                 // Validate and collect results
-                const validation = validateRota();
+                const validation = selectedAlgorithm === 'v4' ? validateRotaV4() : validateRota();
                 results.push({
                     week: w + 1,
                     date: formatWeekDisplay(currentWeekStart),
                     errors: validation.errors,
-                    warnings: validation.warnings
+                    warnings: validation.warnings || []
                 });
             }
 
@@ -2017,7 +2538,7 @@
                 el.className = 'generation-result generation-error';
                 el.innerHTML = `
                     <details>
-                        <summary>⚠️ 10 weeks generated with ${totalErrors} error(s) and ${totalWarnings} warning(s) - click for details</summary>
+                        <summary>⚠️ 5 weeks generated with ${totalErrors} error(s) and ${totalWarnings} warning(s) - click for details</summary>
                         <div class="details-list">
                             ${allIssues.map(m => '• ' + m).join('<br>')}
                         </div>
@@ -2026,7 +2547,7 @@
                 el.className = 'generation-result generation-warning';
                 el.innerHTML = `
                     <details>
-                        <summary>⚠️ 10 weeks generated with ${totalWarnings} warning(s) - click for details</summary>
+                        <summary>⚠️ 5 weeks generated with ${totalWarnings} warning(s) - click for details</summary>
                         <div class="details-list">
                             ${allWarnings.map(m => '• ' + m).join('<br>')}
                         </div>
@@ -2035,19 +2556,28 @@
                 el.className = 'generation-result generation-success';
                 el.innerHTML = `
                     <details>
-                        <summary>✓ 10 weeks generated successfully - click for details</summary>
+                        <summary>✓ 5 weeks generated successfully - click for details</summary>
                         <div class="details-list">
                             • Full 1-2 staff coverage on all days (3 during changeover)<br>
                             • All staff at 37.5hrs each week<br>
                             • 2 consecutive days off per person per week<br>
-                            • Weekend shifts balanced across 10 weeks
+                            • Weekend shifts balanced across 5 weeks
                         </div>
                     </details>`;
             }
         }
         
         function generateWeekSilent() {
-            // Same as generateBestFitRota but without UI updates
+            // Dispatch to selected algorithm (silent mode - no UI updates)
+            if (selectedAlgorithm === 'v4') {
+                generateWeekSilentV4();
+            } else {
+                generateWeekSilentV3();
+            }
+        }
+
+        function generateWeekSilentV3() {
+            // V3 algorithm without UI updates
             rng = new SeededRandom(getWeekSeed(currentWeekStart));
 
             const weekendStats10Week = getWeekendStatsForPeriod(10);
@@ -2082,6 +2612,28 @@
 
             // Apply state to rota
             rota = state.toRota();
+        }
+
+        function generateWeekSilentV4() {
+            // V4 algorithm without UI updates
+            if (staff.length !== 5) return;
+
+            loadV4ShiftHistory();
+
+            const weekNum = getV4WeekNumber(currentWeekStart);
+            const schedule = buildV4WeekSchedule(weekNum);
+
+            // Convert to rota format
+            rota = {};
+            staff.forEach((s, idx) => {
+                rota[s.id] = {};
+                DAYS.forEach((day, dayIdx) => {
+                    const shift = schedule[idx][dayIdx];
+                    rota[s.id][day] = shift === 'OFF' ? 'off' : shift.toLowerCase();
+                });
+            });
+
+            saveV4ShiftHistory();
         }
 
         function planConsecutiveDaysOff(weekendStats10Week) {
@@ -2637,8 +3189,8 @@
                                 <input type="date" id="printStartDate" style="padding: 5px; border: 1px solid var(--border-color); border-radius: 4px; background: var(--input-bg); color: var(--text-color);">
                             </label>
                             <label style="display: flex; align-items: center; gap: 5px; margin-top: 8px;">
-                                <span>To:</span>
-                                <input type="date" id="printEndDate" style="padding: 5px; border: 1px solid var(--border-color); border-radius: 4px; background: var(--input-bg); color: var(--text-color);">
+                                <span>Weeks:</span>
+                                <input type="number" id="printNumWeeks" min="1" max="52" value="5" style="padding: 5px; width: 60px; border: 1px solid var(--border-color); border-radius: 4px; background: var(--input-bg); color: var(--text-color);">
                             </label>
                         </div>
                     </div>
@@ -2660,13 +3212,10 @@
             overlay.appendChild(dialog);
             document.body.appendChild(overlay);
 
-            // Set default dates
+            // Set default start date
             const startDateInput = document.getElementById('printStartDate');
-            const endDateInput = document.getElementById('printEndDate');
+            const numWeeksInput = document.getElementById('printNumWeeks');
             startDateInput.value = currentWeekStart.toISOString().split('T')[0];
-            const endDefault = new Date(currentWeekStart);
-            endDefault.setDate(endDefault.getDate() + 7 * 4); // 4 weeks ahead
-            endDateInput.value = endDefault.toISOString().split('T')[0];
 
             // Toggle range inputs visibility
             const rangeInputs = document.getElementById('rangeInputs');
@@ -2697,25 +3246,23 @@
                     document.body.removeChild(overlay);
                     printSingleWeek(currentWeekStart, includeCoverage);
                 } else {
-                    // Parse dates properly (YYYY-MM-DD format from input)
                     const startVal = startDateInput.value;
-                    const endVal = endDateInput.value;
+                    const numWeeks = parseInt(numWeeksInput.value, 10);
 
-                    if (!startVal || !endVal) {
-                        alert('Please select both start and end dates');
+                    if (!startVal) {
+                        alert('Please select a start date');
+                        return;
+                    }
+
+                    if (!numWeeks || numWeeks < 1) {
+                        alert('Please enter a valid number of weeks');
                         return;
                     }
 
                     const startDate = new Date(startVal + 'T00:00:00');
-                    const endDate = new Date(endVal + 'T00:00:00');
-
-                    if (startDate > endDate) {
-                        alert('Start date must be before end date');
-                        return;
-                    }
 
                     document.body.removeChild(overlay);
-                    printWeekRange(startDate, endDate, includeCoverage);
+                    printWeekRangeByCount(startDate, numWeeks, includeCoverage);
                 }
             };
         }
@@ -2868,68 +3415,74 @@
             }
 
             // Add weekend balance stats on final page
-            const lastWeek = weeks[weeks.length - 1];
-            currentWeekStart = lastWeek;
-            loadWeekData();
+            // Build shift distribution summary page for the weeks being printed
+            const distribution = getShiftDistributionForPrintedWeeks(weeks);
 
-            const stats = getWeekendStatsForPeriod(10);
-            const avgTotal = getAverageWeekendShifts10Week();
-
-            // Include last week's planned shifts
+            // Calculate team totals
+            const teamTotals = { early: 0, mid: 0, late: 0, floating: 0, long: 0, total: 0, weekends: 0 };
             staff.forEach(s => {
-                if (rota[s.id]) {
-                    if (rota[s.id].sat && rota[s.id].sat !== 'off') {
-                        stats[s.id].sat++;
-                        stats[s.id].total++;
-                    }
-                    if (rota[s.id].sun && rota[s.id].sun !== 'off') {
-                        stats[s.id].sun++;
-                        stats[s.id].total++;
-                    }
-                }
+                const dist = distribution[s.id];
+                teamTotals.early += dist.early;
+                teamTotals.mid += dist.mid;
+                teamTotals.late += dist.late;
+                teamTotals.floating += dist.floating;
+                teamTotals.long += dist.long;
+                teamTotals.total += dist.total;
+                teamTotals.weekends += dist.weekends;
             });
 
-            let weekendHtml = '<div style="page-break-before: always; padding-top: 20px;">';
-            weekendHtml += '<img src="logo.svg" alt="Xrota" style="display: block; height: 40px; margin: 0 auto 5px;">';
-            weekendHtml += '<h3 style="text-align: center; margin: 0 0 10px; font-size: 16px;">Weekend Shifts - Last 10 Weeks</h3>';
-            weekendHtml += '<p style="text-align: center; margin: 0 0 20px; font-size: 12px; color: #666;">Total weekend shifts worked per person. ';
-            weekendHtml += '<span style="color: #27ae60;">●</span> Balanced &nbsp; ';
-            weekendHtml += '<span style="color: #e74c3c;">●</span> Above average (give more weekends off) &nbsp; ';
-            weekendHtml += '<span style="color: #3498db;">●</span> Below average (available for more weekends)</p>';
-            weekendHtml += '<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 10px;">';
+            let summaryHtml = '<div style="page-break-before: always; padding-top: 20px;">';
+            summaryHtml += '<img src="logo.svg" alt="Xrota" style="display: block; height: 40px; margin: 0 auto 5px;">';
+            summaryHtml += '<h3 style="text-align: center; margin: 0 0 10px; font-size: 16px;">Shift Distribution - ' + weeks.length + ' Week' + (weeks.length === 1 ? '' : 's') + '</h3>';
+            summaryHtml += '<p style="text-align: center; margin: 0 0 20px; font-size: 12px; color: #666;">Total shifts by type per person. Includes any manual changes.</p>';
+
+            // Build table
+            summaryHtml += '<table style="width: 100%; border-collapse: collapse; font-size: 12px;">';
+            summaryHtml += '<thead><tr>';
+            summaryHtml += '<th style="padding: 10px; text-align: left; border: 1px solid #ddd; background: #34495e; color: #fff; -webkit-print-color-adjust: exact; print-color-adjust: exact;">Staff</th>';
+            summaryHtml += '<th style="padding: 10px; text-align: center; border: 1px solid #ddd; background: #d4edda; color: #155724; -webkit-print-color-adjust: exact; print-color-adjust: exact;">Early</th>';
+            summaryHtml += '<th style="padding: 10px; text-align: center; border: 1px solid #ddd; background: #fff3cd; color: #856404; -webkit-print-color-adjust: exact; print-color-adjust: exact;">Mid</th>';
+            summaryHtml += '<th style="padding: 10px; text-align: center; border: 1px solid #ddd; background: #cce5ff; color: #004085; -webkit-print-color-adjust: exact; print-color-adjust: exact;">Late</th>';
+            summaryHtml += '<th style="padding: 10px; text-align: center; border: 1px solid #ddd; background: #e2d5f1; color: #4a235a; -webkit-print-color-adjust: exact; print-color-adjust: exact;">Float</th>';
+            summaryHtml += '<th style="padding: 10px; text-align: center; border: 1px solid #ddd; background: #f8d7da; color: #721c24; -webkit-print-color-adjust: exact; print-color-adjust: exact;">Long</th>';
+            summaryHtml += '<th style="padding: 10px; text-align: center; border: 1px solid #ddd; background: #f8f9fa; -webkit-print-color-adjust: exact; print-color-adjust: exact;">Total</th>';
+            summaryHtml += '<th style="padding: 10px; text-align: center; border: 1px solid #ddd; background: #8e44ad; color: #fff; -webkit-print-color-adjust: exact; print-color-adjust: exact;">Weekend Shifts</th>';
+            summaryHtml += '</tr></thead><tbody>';
 
             staff.forEach(s => {
-                const stat = stats[s.id];
-                let statusColor = '#27ae60';
-                let statusText = 'Balanced';
-                if (stat.total > avgTotal + 2) {
-                    statusColor = '#e74c3c';
-                    statusText = 'Above avg';
-                } else if (stat.total < avgTotal - 2) {
-                    statusColor = '#3498db';
-                    statusText = 'Below avg';
-                }
-
-                weekendHtml += '<div style="background: #f8f9fa; padding: 15px; border-radius: 8px; text-align: center; border: 1px solid #ddd;">';
-                weekendHtml += '<div style="font-weight: bold; margin-bottom: 8px;">' + s.name + '</div>';
-                weekendHtml += '<div style="font-size: 28px; color: ' + statusColor + '; font-weight: bold; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important;">' + stat.total + '</div>';
-                weekendHtml += '<div style="font-size: 10px; color: ' + statusColor + '; margin-bottom: 4px; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important;">' + statusText + '</div>';
-                weekendHtml += '<div style="font-size: 11px; color: #666;">Sat: ' + stat.sat + ' | Sun: ' + stat.sun + '</div>';
-                weekendHtml += '</div>';
+                const dist = distribution[s.id];
+                summaryHtml += '<tr>';
+                summaryHtml += '<td style="padding: 10px; border: 1px solid #ddd; font-weight: bold; background: #ecf0f1; -webkit-print-color-adjust: exact; print-color-adjust: exact;">' + s.name + '</td>';
+                summaryHtml += '<td style="padding: 10px; border: 1px solid #ddd; text-align: center; background: #d4edda; color: #155724; font-weight: bold; -webkit-print-color-adjust: exact; print-color-adjust: exact;">' + dist.early + '</td>';
+                summaryHtml += '<td style="padding: 10px; border: 1px solid #ddd; text-align: center; background: #fff3cd; color: #856404; font-weight: bold; -webkit-print-color-adjust: exact; print-color-adjust: exact;">' + dist.mid + '</td>';
+                summaryHtml += '<td style="padding: 10px; border: 1px solid #ddd; text-align: center; background: #cce5ff; color: #004085; font-weight: bold; -webkit-print-color-adjust: exact; print-color-adjust: exact;">' + dist.late + '</td>';
+                summaryHtml += '<td style="padding: 10px; border: 1px solid #ddd; text-align: center; background: #e2d5f1; color: #4a235a; font-weight: bold; -webkit-print-color-adjust: exact; print-color-adjust: exact;">' + dist.floating + '</td>';
+                summaryHtml += '<td style="padding: 10px; border: 1px solid #ddd; text-align: center; background: #f8d7da; color: #721c24; font-weight: bold; -webkit-print-color-adjust: exact; print-color-adjust: exact;">' + dist.long + '</td>';
+                summaryHtml += '<td style="padding: 10px; border: 1px solid #ddd; text-align: center; font-weight: bold;">' + dist.total + '</td>';
+                summaryHtml += '<td style="padding: 10px; border: 1px solid #ddd; text-align: center; font-weight: bold;">' + dist.weekends + '</td>';
+                summaryHtml += '</tr>';
             });
 
-            weekendHtml += '<div style="background: #34495e; color: white; padding: 15px; border-radius: 8px; text-align: center; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important;">';
-            weekendHtml += '<div style="font-weight: bold; margin-bottom: 8px;">Team Average</div>';
-            weekendHtml += '<div style="font-size: 28px; font-weight: bold;">' + avgTotal.toFixed(1) + '</div>';
-            weekendHtml += '<div style="font-size: 11px; opacity: 0.8;">weekend shifts</div>';
-            weekendHtml += '</div></div>';
+            // Team average row
+            summaryHtml += '<tr style="background: #34495e; color: #fff; -webkit-print-color-adjust: exact; print-color-adjust: exact;">';
+            summaryHtml += '<td style="padding: 10px; border: 1px solid #ddd; font-weight: bold;">Team Average</td>';
+            summaryHtml += '<td style="padding: 10px; border: 1px solid #ddd; text-align: center;">' + (teamTotals.early / staff.length).toFixed(1) + '</td>';
+            summaryHtml += '<td style="padding: 10px; border: 1px solid #ddd; text-align: center;">' + (teamTotals.mid / staff.length).toFixed(1) + '</td>';
+            summaryHtml += '<td style="padding: 10px; border: 1px solid #ddd; text-align: center;">' + (teamTotals.late / staff.length).toFixed(1) + '</td>';
+            summaryHtml += '<td style="padding: 10px; border: 1px solid #ddd; text-align: center;">' + (teamTotals.floating / staff.length).toFixed(1) + '</td>';
+            summaryHtml += '<td style="padding: 10px; border: 1px solid #ddd; text-align: center;">' + (teamTotals.long / staff.length).toFixed(1) + '</td>';
+            summaryHtml += '<td style="padding: 10px; border: 1px solid #ddd; text-align: center;">' + (teamTotals.total / staff.length).toFixed(1) + '</td>';
+            summaryHtml += '<td style="padding: 10px; border: 1px solid #ddd; text-align: center;">' + (teamTotals.weekends / staff.length).toFixed(1) + '</td>';
+            summaryHtml += '</tr>';
 
-            weekendHtml += '<div style="display: flex; justify-content: space-between; margin-top: 20px; font-size: 11px; color: #666;">';
-            weekendHtml += '<span>' + timestamp + '</span>';
-            weekendHtml += '<span>Page ' + (weeks.length + 1) + ' of ' + (weeks.length + 1) + '</span>';
-            weekendHtml += '</div></div>';
+            summaryHtml += '</tbody></table>';
 
-            pagesHtml += weekendHtml;
+            summaryHtml += '<div style="display: flex; justify-content: space-between; margin-top: 20px; font-size: 11px; color: #666;">';
+            summaryHtml += '<span>' + timestamp + '</span>';
+            summaryHtml += '<span>Page ' + (weeks.length + 1) + ' of ' + (weeks.length + 1) + '</span>';
+            summaryHtml += '</div></div>';
+
+            pagesHtml += summaryHtml;
 
             // Restore original week
             currentWeekStart = originalWeek;
@@ -2984,7 +3537,27 @@
                 iframe.contentWindow.print();
             }, 300);
         }
-        
+
+        function printWeekRangeByCount(startDate, numWeeks, includeCoverage) {
+            // Get Monday of start week
+            const startMonday = getMonday(startDate);
+
+            // Build array of weeks
+            const weeks = [];
+            let current = new Date(startMonday);
+            for (let i = 0; i < numWeeks; i++) {
+                weeks.push(new Date(current));
+                current.setDate(current.getDate() + 7);
+            }
+
+            // Calculate end date for the range (last day of last week)
+            const endDate = new Date(weeks[weeks.length - 1]);
+            endDate.setDate(endDate.getDate() + 6);
+
+            // Use the existing printWeekRange logic by calling it with calculated end date
+            printWeekRange(startMonday, endDate, includeCoverage);
+        }
+
         function toggleDarkMode() {
             const html = document.documentElement;
             const isDark = html.getAttribute('data-theme') === 'dark';

@@ -1,0 +1,556 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Xrota Auto-Scheduling Algorithm Guide</title>
+    <style>
+        @page {
+            size: A4 portrait;
+            margin: 20mm 15mm 20mm 15mm;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+            line-height: 1.5;
+            color: #333;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 40px 20px;
+            font-size: 11pt;
+        }
+
+        h1 {
+            color: #1a1a2e;
+            font-size: 24pt;
+            margin-bottom: 8px;
+            border-bottom: 3px solid #3498db;
+            padding-bottom: 8px;
+        }
+
+        .subtitle {
+            color: #666;
+            font-size: 12pt;
+            margin-bottom: 20px;
+        }
+
+        h2 {
+            color: #2c3e50;
+            font-size: 14pt;
+            margin-top: 20px;
+            margin-bottom: 12px;
+            padding-bottom: 4px;
+            border-bottom: 1px solid #ddd;
+            page-break-after: avoid;
+        }
+
+        h3 {
+            color: #34495e;
+            font-size: 12pt;
+            margin-top: 15px;
+            margin-bottom: 8px;
+            page-break-after: avoid;
+        }
+
+        p {
+            margin-bottom: 10px;
+        }
+
+        ul, ol {
+            margin-left: 20px;
+            margin-bottom: 12px;
+        }
+
+        li {
+            margin-bottom: 5px;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 12px 0;
+            font-size: 10pt;
+            page-break-inside: avoid;
+        }
+
+        th, td {
+            border: 1px solid #ddd;
+            padding: 8px 10px;
+            text-align: left;
+        }
+
+        th {
+            background: #3498db;
+            color: white;
+            font-weight: 600;
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
+        }
+
+        tr:nth-child(even) {
+            background: #f9f9f9;
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
+        }
+
+        .highlight-box {
+            background: #e8f4fc;
+            border-left: 4px solid #3498db;
+            padding: 12px;
+            margin: 15px 0;
+            border-radius: 0 5px 5px 0;
+            page-break-inside: avoid;
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
+        }
+
+        .success-box {
+            background: #e8f8f0;
+            border-left: 4px solid #27ae60;
+            padding: 12px;
+            margin: 15px 0;
+            border-radius: 0 5px 5px 0;
+            page-break-inside: avoid;
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
+        }
+
+        .warning-box {
+            background: #fef9e7;
+            border-left: 4px solid #f39c12;
+            padding: 12px;
+            margin: 15px 0;
+            border-radius: 0 5px 5px 0;
+            page-break-inside: avoid;
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
+        }
+
+        .section {
+            margin-bottom: 20px;
+        }
+
+        strong {
+            color: #2c3e50;
+        }
+
+        .page-break {
+            page-break-before: always;
+        }
+
+        .keep-together {
+            page-break-inside: avoid;
+        }
+
+        @media print {
+            body {
+                padding: 0;
+                font-size: 10pt;
+            }
+
+            h1 {
+                font-size: 20pt;
+            }
+
+            h2 {
+                font-size: 13pt;
+            }
+
+            h3 {
+                font-size: 11pt;
+            }
+
+            .no-print {
+                display: none !important;
+            }
+
+            .section {
+                page-break-inside: avoid;
+            }
+        }
+
+        .print-btn {
+            background: #3498db;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            font-size: 16px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin-bottom: 30px;
+        }
+
+        .print-btn:hover {
+            background: #2980b9;
+        }
+
+        .rotation-table th {
+            text-align: center;
+            font-size: 9pt;
+            padding: 6px 4px;
+        }
+
+        .rotation-table td {
+            text-align: center;
+            font-size: 9pt;
+            padding: 6px 4px;
+        }
+
+        .rotation-table td:first-child {
+            text-align: center;
+            font-weight: bold;
+        }
+
+        .footer {
+            margin-top: 30px;
+            padding-top: 15px;
+            border-top: 1px solid #ddd;
+            color: #666;
+            font-size: 10pt;
+        }
+    </style>
+</head>
+<body>
+    <button class="print-btn no-print" onclick="window.print()">Print / Save as PDF</button>
+
+    <!-- PAGE 1: Title, Overview, How It Works -->
+    <img src="../logo.svg" alt="Xrota" style="height: 50px; margin-bottom: 15px;">
+    <h1>Auto-Scheduling Algorithm Guide</h1>
+    <p class="subtitle">A Guide for HR and Management — Version 4 (5-Week Rotation)</p>
+
+    <div class="section">
+        <h2>Overview</h2>
+        <p>Xrota uses a <strong>5-week rotating schedule</strong> that provides predictable, consistent shifts for staff while ensuring fair distribution of weekend work and shift types across the team.</p>
+
+        <div class="success-box">
+            <p><strong>Key Benefits:</strong></p>
+            <ul style="margin-bottom: 0;">
+                <li>Staff know their shift pattern weeks in advance</li>
+                <li>Everyone works the same shift type all week (no daily changes)</li>
+                <li>Weekend work is shared equally — exactly 2 weekends per person over 5 weeks</li>
+                <li>All days off are consecutive (no split days off)</li>
+            </ul>
+        </div>
+    </div>
+
+    <div class="section">
+        <h2>How It Works</h2>
+
+        <h3>The 5-Week Cycle</h3>
+        <p>The schedule operates on a repeating 5-week cycle. Each week, staff are divided into two groups:</p>
+
+        <table>
+            <tr>
+                <th style="width: 45%;">Weekend Workers (2 people)</th>
+                <th style="width: 55%;">Weekday-Only Workers (3 people)</th>
+            </tr>
+            <tr>
+                <td>
+                    <ul style="margin: 0;">
+                        <li>Work Saturday and Sunday</li>
+                        <li>Get 2 consecutive weekdays off</li>
+                        <li>Work <strong>Floating</strong> shifts on their other weekdays</li>
+                    </ul>
+                </td>
+                <td>
+                    <ul style="margin: 0;">
+                        <li>Work Monday to Friday only</li>
+                        <li>Have Saturday and Sunday off</li>
+                        <li>Work the <strong>same shift type</strong> all 5 weekdays (Early, Mid, or Late)</li>
+                    </ul>
+                </td>
+            </tr>
+        </table>
+
+        <div class="keep-together">
+            <h3>For Each Staff Member, Every Week:</h3>
+            <ul>
+                <li>Exactly <strong>37.5 working hours</strong> (5 shifts × 7.5 hours)</li>
+                <li>Exactly <strong>2 consecutive days off</strong></li>
+                <li><strong>12 hours minimum rest</strong> between shifts (guaranteed by consistent shift blocks)</li>
+            </ul>
+        </div>
+    </div>
+
+    <div class="section keep-together">
+        <h2>Weekend Rotation</h2>
+
+        <div class="highlight-box">
+            <p><strong>Fair Weekend Distribution:</strong> Over every 5-week cycle, each staff member works exactly <strong>2 weekends</strong>. The rotation is fixed to ensure complete fairness.</p>
+        </div>
+
+        <p>Each weekend requires exactly 2 staff:</p>
+        <ul>
+            <li><strong>One person works Early</strong> (08:00-16:30) on both Saturday and Sunday</li>
+            <li><strong>One person works Late</strong> (12:00-20:30) on both Saturday and Sunday</li>
+        </ul>
+
+        <p>Weekend workers receive their 2 days off during the week instead:</p>
+        <ul>
+            <li>Either <strong>Monday-Tuesday</strong> off, or <strong>Thursday-Friday</strong> off</li>
+        </ul>
+        <p><em>The two weekend workers always have different weekday days off to ensure coverage.</em></p>
+    </div>
+
+    <!-- PAGE 2: Shift Types, Coverage, Example Schedule -->
+    <div class="page-break"></div>
+
+    <div class="section keep-together">
+        <h2>Shift Types</h2>
+        <table>
+            <tr>
+                <th>Shift</th>
+                <th>Hours</th>
+                <th>Time</th>
+                <th>When Used</th>
+            </tr>
+            <tr>
+                <td><strong>Early</strong></td>
+                <td>7.5 hrs</td>
+                <td>08:00 - 16:30</td>
+                <td>Opens the business; weekday blocks + weekend coverage</td>
+            </tr>
+            <tr>
+                <td><strong>Mid</strong></td>
+                <td>7.5 hrs</td>
+                <td>10:00 - 18:30</td>
+                <td>Covers midday peak; weekday blocks only</td>
+            </tr>
+            <tr>
+                <td><strong>Late</strong></td>
+                <td>7.5 hrs</td>
+                <td>12:00 - 20:30</td>
+                <td>Closes the business; weekday blocks + weekend coverage</td>
+            </tr>
+            <tr>
+                <td><strong>Floating</strong></td>
+                <td>7.5 hrs</td>
+                <td>08:30 - 17:00</td>
+                <td>For weekend workers on their weekday shifts</td>
+            </tr>
+        </table>
+        <p><em>Note: Floating shifts provide flexible coverage during core hours.</em></p>
+    </div>
+
+    <div class="section keep-together">
+        <h2>Coverage Requirements</h2>
+
+        <h3>Weekdays (Monday - Friday)</h3>
+        <ul>
+            <li><strong>Minimum 1 coverage shift</strong> (Early, Mid, or Late) at all times</li>
+            <li><strong>Maximum 3 coverage shifts</strong> at any time</li>
+            <li>Floating shifts can be added without limit</li>
+        </ul>
+
+        <h3>Weekends (Saturday - Sunday)</h3>
+        <ul>
+            <li><strong>Exactly 2 staff</strong> — one Early, one Late</li>
+            <li>No Floating shifts on weekends</li>
+            <li>This ensures the business is covered from 08:00 to 20:30</li>
+        </ul>
+    </div>
+
+    <div class="section keep-together">
+        <h2>Example 5-Week Schedule</h2>
+        <p>Here's how shifts rotate over a complete 5-week cycle:</p>
+
+        <table class="rotation-table">
+            <tr>
+                <th>Week</th>
+                <th>Weekend<br>Workers</th>
+                <th>Staff A</th>
+                <th>Staff B</th>
+                <th>Staff C</th>
+                <th>Staff D</th>
+                <th>Staff E</th>
+            </tr>
+            <tr>
+                <td>1</td>
+                <td>A + B</td>
+                <td>Float+wknd</td>
+                <td>Float+wknd</td>
+                <td>Early ×5</td>
+                <td>Late ×5</td>
+                <td>Mid ×5</td>
+            </tr>
+            <tr>
+                <td>2</td>
+                <td>C + D</td>
+                <td>Late ×5</td>
+                <td>Early ×5</td>
+                <td>Float+wknd</td>
+                <td>Float+wknd</td>
+                <td>Mid ×5</td>
+            </tr>
+            <tr>
+                <td>3</td>
+                <td>E + A</td>
+                <td>Float+wknd</td>
+                <td>Late ×5</td>
+                <td>Early ×5</td>
+                <td>Mid ×5</td>
+                <td>Float+wknd</td>
+            </tr>
+            <tr>
+                <td>4</td>
+                <td>B + C</td>
+                <td>Mid ×5</td>
+                <td>Float+wknd</td>
+                <td>Float+wknd</td>
+                <td>Early ×5</td>
+                <td>Late ×5</td>
+            </tr>
+            <tr>
+                <td>5</td>
+                <td>D + E</td>
+                <td>Early ×5</td>
+                <td>Mid ×5</td>
+                <td>Late ×5</td>
+                <td>Float+wknd</td>
+                <td>Float+wknd</td>
+            </tr>
+        </table>
+
+        <p><em>"Float+wknd" = Floating shifts on weekdays with Early or Late on Saturday/Sunday</em></p>
+
+        <div class="highlight-box">
+            <p><strong>5-Week Totals (identical for all staff):</strong></p>
+            <ul style="margin-bottom: 0;">
+                <li>Early: 7 shifts | Mid: 5 shifts | Late: 7 shifts | Floating: 6 shifts</li>
+                <li><strong>Total: 25 shifts = 187.5 hours</strong></li>
+            </ul>
+        </div>
+    </div>
+
+    <!-- PAGE 3: Rest, Using Xrota, Warnings -->
+    <div class="page-break"></div>
+
+    <div class="section keep-together">
+        <h2>Rest Requirements</h2>
+        <div class="warning-box">
+            <p><strong>12-Hour Rest Rule:</strong></p>
+            <p>Staff must have at least 12 hours between the end of one shift and the start of the next.</p>
+            <ul style="margin-bottom: 0;">
+                <li><strong>No Late shift followed by Early shift</strong> the next day (would be only 11.5 hours rest)</li>
+                <li>The consistent shift block system naturally prevents this — if you're on Early all week, you never have a Late-to-Early transition</li>
+            </ul>
+        </div>
+        <p><em>Note: If you manually edit the schedule, Xrota will warn you if an edit would violate the 12-hour rest rule.</em></p>
+    </div>
+
+    <div class="section keep-together">
+        <h2>Shift Variety</h2>
+        <p>The system tracks which shift types each person has worked and automatically balances variety over time:</p>
+        <ul>
+            <li>Staff who haven't done a particular shift recently are prioritised for it</li>
+            <li>No one gets stuck doing the same shift type repeatedly</li>
+            <li>The algorithm alternates between "early preference" and "late preference" weeks</li>
+        </ul>
+    </div>
+
+    <div class="section keep-together">
+        <h2>Using Xrota</h2>
+
+        <h3>Generating Schedules</h3>
+        <ul>
+            <li><strong>"Generate This Week"</strong> — Creates a schedule for the current week only</li>
+            <li><strong>"Generate 5 Weeks"</strong> — Creates a complete 5-week cycle (recommended)</li>
+        </ul>
+
+        <div class="highlight-box">
+            <p><strong>Best Practice:</strong> Generate 5 weeks at once to ensure the full rotation cycle is complete and weekend distribution is balanced.</p>
+        </div>
+
+        <h3>Making Manual Changes</h3>
+        <ol>
+            <li>Click on a shift button (Early, Mid, Late, Floating, or Day Off)</li>
+            <li>Click on the cell in the schedule you want to change</li>
+            <li>The system will warn you if the change creates any issues</li>
+        </ol>
+
+        <h3>Printing Schedules</h3>
+        <ul>
+            <li>Click "Print Schedule" to print the current week or a range of weeks</li>
+            <li>Multi-week prints include a shift distribution summary</li>
+        </ul>
+    </div>
+
+    <div class="section keep-together">
+        <h2>Warnings You Might See</h2>
+        <table>
+            <tr>
+                <th style="width: 40%;">Warning</th>
+                <th>What It Means</th>
+            </tr>
+            <tr>
+                <td>"Days off are not consecutive"</td>
+                <td>Staff has 2 days off but they're split (usually from manual edits)</td>
+            </tr>
+            <tr>
+                <td>"Only X hrs assigned"</td>
+                <td>Staff couldn't reach 37.5 hours — check for missing shifts</td>
+            </tr>
+            <tr>
+                <td>"Coverage gap"</td>
+                <td>A time slot has no staff coverage — needs attention</td>
+            </tr>
+            <tr>
+                <td>"Rest violation"</td>
+                <td>Less than 12 hours between shifts (e.g., Late then Early)</td>
+            </tr>
+            <tr>
+                <td>"Weekend coverage issue"</td>
+                <td>Weekend doesn't have exactly 1 Early + 1 Late shift</td>
+            </tr>
+        </table>
+    </div>
+
+    <!-- PAGE 4: Handling Absences, Summary -->
+    <div class="page-break"></div>
+
+    <div class="section keep-together">
+        <h2>Handling Absences</h2>
+        <p>When a staff member is unavailable (holiday, sickness, etc.):</p>
+
+        <h3>If a Weekend Worker is Absent:</h3>
+        <ul>
+            <li>Swap them with a weekday-only worker</li>
+            <li>The replacement takes their weekend Early or Late shifts</li>
+            <li>Adjust the replacement's days off to consecutive weekdays</li>
+        </ul>
+
+        <h3>If a Weekday Worker is Absent:</h3>
+        <ul>
+            <li>Another weekday worker can take their shift block</li>
+            <li>Use Floating shifts to fill any remaining gaps</li>
+            <li>The system will flag any coverage issues</li>
+        </ul>
+    </div>
+
+    <div class="section keep-together">
+        <h2>Summary</h2>
+        <div class="success-box">
+            <p><strong>The 5-Week Rotation System ensures:</strong></p>
+            <ul style="margin-bottom: 0;">
+                <li>Everyone works exactly 37.5 hours per week</li>
+                <li>Everyone gets 2 consecutive days off per week</li>
+                <li>Everyone works exactly 2 weekends per 5-week cycle</li>
+                <li>Consistent shift patterns within each week (same shift type daily)</li>
+                <li>Fair distribution of Early, Mid, and Late shifts over time</li>
+                <li>Proper coverage from 08:00 to 20:30 every day</li>
+            </ul>
+        </div>
+    </div>
+
+    <div class="footer">
+        <p>Xrota Staff Scheduling System — Version 4</p>
+        <p>Document generated: <script>document.write(new Date().toLocaleDateString())</script></p>
+    </div>
+</body>
+</html>

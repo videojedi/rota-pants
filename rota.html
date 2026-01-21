@@ -18,14 +18,7 @@
     <img src="logo.svg" alt="Xrota" class="print-title" style="display: none; height: 48px; margin: 0 auto 5px;">
     <p class="print-week" id="printWeek" style="display: none; text-align: center; margin: 0 0 10px; font-size: 14px; font-weight: bold;"></p>
 
-    <div class="week-selector" style="background: var(--card-bg); padding: 15px; border-radius: 8px; margin-bottom: 20px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); text-align: center;">
-        <label style="font-weight: 500; margin-right: 10px; color: var(--text-muted);">Week starting:</label>
-        <button onclick="changeWeek(-1)" style="padding: 5px 10px; cursor: pointer; background: var(--header-bg); color: #fff; border: none; border-radius: 4px;">&lt; Prev</button>
-        <span id="weekDisplay" style="font-size: 18px; font-weight: bold; margin: 0 15px; color: var(--text-color);"></span>
-        <button onclick="changeWeek(1)" style="padding: 5px 10px; cursor: pointer; background: var(--header-bg); color: #fff; border: none; border-radius: 4px;">Next &gt;</button>
-        <button onclick="goToThisWeek()" style="padding: 5px 10px; cursor: pointer; background: #27ae60; color: #fff; border: none; border-radius: 4px; margin-left: 15px;">This Week</button>
-        <button onclick="goToNextIssueWeek()" style="padding: 5px 10px; cursor: pointer; background: #e67e22; color: #fff; border: none; border-radius: 4px; margin-left: 10px;">Next Issue</button>
-    </div>
+
 
     <div class="info-bar">
         <div class="info-item">
@@ -51,16 +44,27 @@
     </div>
 
     <div class="controls">
+        <!-- Algorithm selector hidden for now - defaulting to V4 -->
+        <div id="algorithmSelector" style="display: none; align-items: center; gap: 15px; margin-bottom: 15px; flex-wrap: wrap;">
+            <div style="display: flex; align-items: center; gap: 8px;">
+                <label style="font-weight: 500; color: var(--text-muted);">Algorithm:</label>
+                <select id="algorithmSelect" onchange="changeAlgorithm(this.value)" style="padding: 8px 12px; border-radius: 5px; border: 1px solid var(--border-color); background: var(--input-bg); color: var(--text-color); font-size: 14px;">
+                    <option value="v3">V3 - Backtracking</option>
+                    <option value="v4" selected>V4 - 5-Week Rotation</option>
+                </select>
+            </div>
+            <span id="algorithmInfo" style="font-size: 12px; color: var(--text-muted);">5-week rotation with consistent shift blocks</span>
+        </div>
         <div class="action-btns" style="margin-bottom: 15px;">
             <button class="action-btn primary" onclick="generateBestFitRota()">Generate This Week</button>
-            <button class="action-btn secondary" onclick="generate10Weeks()" style="background: #8e44ad;">Generate 10 Weeks</button>
+            <button class="action-btn secondary" onclick="generate5Weeks()" style="background: #8e44ad;">Generate 5 Weeks</button>
             <button class="action-btn danger" onclick="openClearModal()">Clear</button>
             <button class="action-btn print" onclick="printRota()">Print Schedule</button>
             <button class="action-btn secondary" onclick="openImportExportModal()" style="background: #2c3e50;">Import/Export CSV</button>
-            <button class="action-btn secondary" onclick="openPreferencesModal()" style="background: #16a085;">Staff Preferences</button>
+            <button class="action-btn secondary" onclick="openPreferencesModal()" style="background: #16a085; display: none;">Staff Preferences</button>
         </div>
         <div id="generationResult" class="generation-result" style="display: none;"></div>
-        <p style="margin: 10px 0; color: var(--text-muted); font-size: 13px;">Auto-generation uses Early, Mid, and Late shifts with backtracking solver. Coverage: 1-2 staff (max 3 during 08:00-16:30). Each person works exactly 37.5 hours. Uses seeded RNG for reproducibility.</p>
+        <p id="algorithmDescription" style="margin: 10px 0; color: var(--text-muted); font-size: 13px;">5-week rotation: Weekend workers do E/L Sat-Sun + Float weekdays. Non-weekend staff get one shift type (E/M/L) all week. Each person works exactly 37.5 hours.</p>
         <h3>Shift Templates (click to select, then click cells)</h3>
         <div class="shift-templates">
             <button class="shift-btn" data-shift="early">Early (08:00-16:30)</button>
@@ -91,8 +95,17 @@
             <tbody id="rotaBody">
             </tbody>
         </table>
-    </div>
 
+
+    <div class="week-selector" style="background: var(--card-bg); padding: 15px; border-radius: 8px; margin-bottom: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); text-align: left;">
+        <label style="font-weight: 500; margin-right: 10px; color: var(--text-muted);">Week starting:</label>
+        <span id="weekDisplay" style="font-size: 18px; font-weight: bold; margin: 0 15px; color: var(--text-color);"></span>
+        <button onclick="changeWeek(-1)" style="padding: 5px 10px; cursor: pointer; background: var(--header-bg); color: #fff; border: none; border-radius: 4px;">&lt; Prev</button>
+        <button onclick="changeWeek(1)" style="padding: 5px 10px; cursor: pointer; background: var(--header-bg); color: #fff; border: none; border-radius: 4px;">Next &gt;</button>
+        <button onclick="goToThisWeek()" style="padding: 5px 10px; cursor: pointer; background: #27ae60; color: #fff; border: none; border-radius: 4px; margin-left: 15px;">This Week</button>
+        <button onclick="goToNextIssueWeek()" style="padding: 5px 10px; cursor: pointer; background: #e67e22; color: #fff; border: none; border-radius: 4px; margin-left: 10px;">Next Issue</button>
+    </div>    
+    </div>
     <div class="coverage-detail">
         <h4>Hourly Coverage Graph</h4>
         <div class="graph-legend" style="display: flex; gap: 15px; margin-bottom: 15px; font-size: 12px; flex-wrap: wrap;">
@@ -105,15 +118,28 @@
         </div>
     </div>
 
-    <div class="weekend-stats" style="margin-top: 20px; padding: 15px; background: var(--card-bg); border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
-        <h4 style="margin-top: 0;">Weekend Shifts - Last 10 Weeks</h4>
+    <div class="shift-distribution" style="margin-top: 20px; padding: 15px; background: var(--card-bg); border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+        <h4 style="margin-top: 0;">Shift Distribution - Last 5 Weeks</h4>
         <p style="margin: 0 0 15px; font-size: 13px; color: var(--text-muted);">
-            Total weekend shifts worked per person.
-            <span style="color: #27ae60;">&#9679;</span> Balanced &nbsp;
-            <span style="color: #e74c3c;">&#9679;</span> Above average (give more weekends off) &nbsp;
-            <span style="color: #3498db;">&#9679;</span> Below average (available for more weekends)
+            Total shifts by type per person. Includes any manual changes made to the schedule.
         </p>
-        <div id="weekendStatsContainer" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px;">
+        <div id="shiftDistributionContainer" style="overflow-x: auto;">
+            <table id="shiftDistributionTable" style="width: 100%; border-collapse: collapse; font-size: 14px;">
+                <thead>
+                    <tr style="background: var(--header-bg); color: #fff;">
+                        <th style="padding: 10px; text-align: left; border: 1px solid var(--border-color);">Staff</th>
+                        <th style="padding: 10px; text-align: center; border: 1px solid var(--border-color); background: var(--early-bg); color: var(--early-text);">Early</th>
+                        <th style="padding: 10px; text-align: center; border: 1px solid var(--border-color); background: var(--mid-bg); color: var(--mid-text);">Mid</th>
+                        <th style="padding: 10px; text-align: center; border: 1px solid var(--border-color); background: var(--late-bg); color: var(--late-text);">Late</th>
+                        <th style="padding: 10px; text-align: center; border: 1px solid var(--border-color); background: var(--floating-bg); color: var(--floating-text);">Float</th>
+                        <th style="padding: 10px; text-align: center; border: 1px solid var(--border-color); background: var(--long-bg); color: var(--long-text);">Long</th>
+                        <th style="padding: 10px; text-align: center; border: 1px solid var(--border-color);">Total</th>
+                        <th style="padding: 10px; text-align: center; border: 1px solid var(--border-color); background: var(--weekend-bg); color: #fff;">Weekend Shifts</th>
+                    </tr>
+                </thead>
+                <tbody id="shiftDistributionBody">
+                </tbody>
+            </table>
         </div>
     </div>
 
