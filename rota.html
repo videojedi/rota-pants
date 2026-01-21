@@ -97,13 +97,13 @@
         </table>
 
 
-    <div class="week-selector" style="background: var(--card-bg); padding: 15px; border-radius: 8px; margin-bottom: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); text-align: left;">
-        <label style="font-weight: 500; margin-right: 10px; color: var(--text-muted);">Week starting:</label>
-        <span id="weekDisplay" style="font-size: 18px; font-weight: bold; margin: 0 15px; color: var(--text-color);"></span>
-        <button onclick="changeWeek(-1)" style="padding: 5px 10px; cursor: pointer; background: var(--header-bg); color: #fff; border: none; border-radius: 4px;">&lt; Prev</button>
-        <button onclick="changeWeek(1)" style="padding: 5px 10px; cursor: pointer; background: var(--header-bg); color: #fff; border: none; border-radius: 4px;">Next &gt;</button>
-        <button onclick="goToThisWeek()" style="padding: 5px 10px; cursor: pointer; background: #27ae60; color: #fff; border: none; border-radius: 4px; margin-left: 15px;">This Week</button>
-        <button onclick="goToNextIssueWeek()" style="padding: 5px 10px; cursor: pointer; background: #e67e22; color: #fff; border: none; border-radius: 4px; margin-left: 10px;">Next Issue</button>
+    <div class="week-selector" style="background: var(--card-bg); padding: 15px; border-radius: 8px; margin-bottom: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); display: flex; align-items: center; gap: 10px;">
+        <label style="font-weight: 500; color: var(--text-muted);">Week starting:</label>
+        <span id="weekDisplay" style="font-size: 18px; font-weight: bold; color: var(--text-color); min-width: 280px;"></span>
+        <button onclick="changeWeek(-1)" style="padding: 8px 10px; cursor: pointer; background: var(--header-bg); color: #fff; border: none; border-radius: 4px;">&lt; Prev</button>
+        <button onclick="changeWeek(1)" style="padding: 8px 10px; cursor: pointer; background: var(--header-bg); color: #fff; border: none; border-radius: 4px;">Next &gt;</button>
+        <button onclick="goToThisWeek()" style="padding: 8px 10px; cursor: pointer; background: #27ae60; color: #fff; border: none; border-radius: 4px; margin-left: 10px;">This Week</button>
+        <button onclick="goToNextIssueWeek()" style="padding: 8px 10px; cursor: pointer; background: #e67e22; color: #fff; border: none; border-radius: 4px;">Next Issue</button>
     </div>    
     </div>
     <div class="coverage-detail">
@@ -127,7 +127,7 @@
             <table id="shiftDistributionTable" style="width: 100%; border-collapse: collapse; font-size: 14px;">
                 <thead>
                     <tr style="background: var(--header-bg); color: #fff;">
-                        <th style="padding: 10px; text-align: left; border: 1px solid var(--border-color);">Staff</th>
+                        <th style="padding: 10px; text-align: center; border: 1px solid var(--border-color);">Staff</th>
                         <th style="padding: 10px; text-align: center; border: 1px solid var(--border-color); background: var(--early-bg); color: var(--early-text);">Early</th>
                         <th style="padding: 10px; text-align: center; border: 1px solid var(--border-color); background: var(--mid-bg); color: var(--mid-text);">Mid</th>
                         <th style="padding: 10px; text-align: center; border: 1px solid var(--border-color); background: var(--late-bg); color: var(--late-text);">Late</th>
