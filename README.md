@@ -2,7 +2,6 @@
 
 A staff scheduling application with automatic rota generation using a fair 5-week rotation system.
 
-**Live Demo:** [rota-pants.vercel.app](https://rota-pants.vercel.app)
 
 ## Features
 
@@ -71,7 +70,6 @@ See [docs/algorithm-guide.html](docs/algorithm-guide.html) for a detailed guide 
 - Vanilla HTML/CSS/JavaScript
 - No build process required
 - LocalStorage for data persistence
-- Deployed on Vercel
 
 ## License
 
