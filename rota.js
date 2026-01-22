@@ -2865,10 +2865,14 @@
                 }
                 graphWrapper.appendChild(yAxis);
                 
+                // Graph area wrapper for positioning overlay
+                const graphAreaWrapper = document.createElement('div');
+                graphAreaWrapper.style.cssText = 'position: relative; flex: 1;';
+
                 const graphArea = document.createElement('div');
                 graphArea.className = 'graph-area';
-                graphArea.style.cssText = `display: flex; align-items: flex-end; gap: 1px; height: ${barHeight}px; background: var(--staff-row-bg); border-radius: 4px; padding: 2px; flex: 1;`;
-                
+                graphArea.style.cssText = `display: flex; align-items: flex-end; gap: 1px; height: ${barHeight}px; background: var(--staff-row-bg); border-radius: 4px; padding: 2px;`;
+
                 // Create bars for each 30-min slot
                 const MORNING_START = 8;
                 const MORNING_END = 12;
@@ -2899,15 +2903,52 @@
                     const periodLabel = isMorning ? ' (morning)' : isChangeover ? ' (changeover)' : '';
                     bar.style.cssText = `flex: 1; height: ${heightPercent}%; background: ${bgColor}; border-radius: 2px 2px 0 0; min-height: ${count > 0 ? '4px' : '100%'}; transition: height 0.3s;`;
                     bar.title = `${Math.floor(t)}:${(t % 1) * 60 || '00'} - ${count} staff${periodLabel}`;
-                    
+
                     if (count === 0) {
                         bar.style.opacity = '0.5';
                     }
-                    
+
                     graphArea.appendChild(bar);
                 }
-                
-                graphWrapper.appendChild(graphArea);
+
+                graphAreaWrapper.appendChild(graphArea);
+
+                // Add floating shift overlay if there are any floating shifts
+                const floatingCount = getFloatingCountForDay(day);
+                if (floatingCount > 0) {
+                    // Floating shift: 8.5 to 17 (08:30-17:00)
+                    const floatingStart = 8.5;
+                    const floatingEnd = 17;
+
+                    // Calculate position as percentage of total time span
+                    // Account for padding (2px on each side)
+                    const startPercent = ((floatingStart - OPEN_TIME) / (CLOSE_TIME - OPEN_TIME)) * 100;
+                    const endPercent = ((floatingEnd - OPEN_TIME) / (CLOSE_TIME - OPEN_TIME)) * 100;
+                    const widthPercent = endPercent - startPercent;
+
+                    // Height based on floating count
+                    const floatingHeightPercent = (floatingCount / maxStaff) * 100;
+
+                    const floatingOverlay = document.createElement('div');
+                    floatingOverlay.className = 'floating-overlay';
+                    floatingOverlay.style.cssText = `
+                        position: absolute;
+                        left: calc(${startPercent}% + 2px);
+                        width: calc(${widthPercent}% - 2px);
+                        bottom: 2px;
+                        height: calc(${floatingHeightPercent}% - 4px);
+                        border: 2px solid #ffe873;
+                        border-radius: 3px;
+                        background: transparent;
+                        pointer-events: none;
+                        box-sizing: border-box;
+                    `;
+                    floatingOverlay.title = `${floatingCount} floating shift${floatingCount > 1 ? 's' : ''} (08:30-17:00)`;
+
+                    graphAreaWrapper.appendChild(floatingOverlay);
+                }
+
+                graphWrapper.appendChild(graphAreaWrapper);
                 dayContainer.appendChild(graphWrapper);
                 
                 // Time labels
@@ -2971,6 +3012,17 @@
                             break;
                         }
                     }
+                }
+            });
+            return count;
+        }
+
+        function getFloatingCountForDay(day) {
+            let count = 0;
+            staff.forEach(s => {
+                const shift = rota[s.id][day];
+                if (shift === 'floating') {
+                    count++;
                 }
             });
             return count;
@@ -3268,17 +3320,8 @@
         }
 
         function printSingleWeek(weekStart, includeCoverage) {
-            document.getElementById('printWeek').textContent = `Week: ${formatWeekDisplay(weekStart)}`;
-            const now = new Date();
-            document.getElementById('printDate').textContent = `Printed: ${now.toLocaleDateString('en-GB')} at ${now.toLocaleTimeString('en-GB', {hour: '2-digit', minute: '2-digit'})}`;
-
-            if (includeCoverage) {
-                document.querySelector('.coverage-detail').classList.add('print-visible');
-            } else {
-                document.querySelector('.coverage-detail').classList.remove('print-visible');
-            }
-
-            window.print();
+            // Use the same layout as multi-week, but just 1 week and no distribution summary
+            printMultipleWeeks([weekStart], includeCoverage, false);
         }
 
         function printWeekRange(startDate, endDate, includeCoverage) {
@@ -3299,243 +3342,7 @@
                 return;
             }
 
-            // Store original week
-            const originalWeek = new Date(currentWeekStart);
-
-            const now = new Date();
-            const timestamp = 'Printed: ' + now.toLocaleDateString('en-GB') + ' at ' + now.toLocaleTimeString('en-GB', {hour: '2-digit', minute: '2-digit'});
-
-            // Build HTML content for all weeks
-            let pagesHtml = '';
-
-            for (let i = 0; i < weeks.length; i++) {
-                const weekStart = weeks[i];
-
-                // Load this week's data
-                currentWeekStart = weekStart;
-                loadWeekData();
-
-                // Build table HTML directly from data
-                const printColorAdjust = '-webkit-print-color-adjust:exact !important; print-color-adjust:exact !important;';
-                let tableHtml = '<table class="rota-table" style="width:100%; border-collapse:collapse;">';
-                tableHtml += '<thead><tr>';
-                tableHtml += '<th style="background:#34495e !important; color:white !important; padding:8px; border:1px solid #ddd; ' + printColorAdjust + '">Staff</th>';
-                DAY_NAMES.forEach((dayName, idx) => {
-                    const isWeekend = idx >= 5;
-                    const bg = isWeekend ? '#8e44ad' : '#34495e';
-                    tableHtml += '<th style="background:' + bg + ' !important; color:white !important; padding:8px; border:1px solid #ddd; ' + printColorAdjust + '">' + dayName + '</th>';
-                });
-                tableHtml += '<th style="background:#34495e !important; color:white !important; padding:8px; border:1px solid #ddd; ' + printColorAdjust + '">Hours</th>';
-                tableHtml += '</tr></thead><tbody>';
-
-                staff.forEach(s => {
-                    tableHtml += '<tr>';
-                    tableHtml += '<td style="padding:8px; border:1px solid #ddd; font-weight:bold; text-align:left;">' + s.name + '</td>';
-
-                    DAYS.forEach(day => {
-                        const shift = rota[s.id] ? rota[s.id][day] : null;
-                        let cellStyle = 'padding:8px; border:1px solid #ddd; text-align:center;';
-                        let cellContent = '';
-
-                        if (shift === 'off') {
-                            cellStyle += ' background:#f5f5f5 !important; -webkit-print-color-adjust:exact !important; print-color-adjust:exact !important;';
-                            cellContent = 'OFF';
-                        } else if (shift && SHIFTS[shift]) {
-                            const colors = {
-                                early: '#d4edda',
-                                late: '#cce5ff',
-                                mid: '#fff3cd',
-                                long: '#f8d7da',
-                                floating: '#e2d5f1'
-                            };
-                            cellStyle += ' background:' + (colors[shift] || '#fff') + ' !important; -webkit-print-color-adjust:exact !important; print-color-adjust:exact !important;';
-                            cellContent = '<strong>' + SHIFTS[shift].name + '</strong><br><small>' + SHIFTS[shift].time + '</small>';
-                        }
-
-                        tableHtml += '<td style="' + cellStyle + '">' + cellContent + '</td>';
-                    });
-
-                    const hours = calculateStaffHours(s.id);
-                    let hoursStyle = 'padding:8px; border:1px solid #ddd; text-align:center;';
-                    if (hours > TARGET_HOURS) {
-                        hoursStyle += ' color:#c0392b;';
-                    } else if (hours < TARGET_HOURS) {
-                        hoursStyle += ' color:#e67e22;';
-                    } else {
-                        hoursStyle += ' color:#27ae60;';
-                    }
-                    tableHtml += '<td style="' + hoursStyle + '">' + hours + ' / ' + TARGET_HOURS + '</td>';
-                    tableHtml += '</tr>';
-                });
-
-                tableHtml += '</tbody></table>';
-
-                // Build coverage graph HTML if requested
-                let coverageHtml = '';
-                if (includeCoverage) {
-                    coverageHtml = '<div style="margin-top: 15px;"><h4 style="margin: 0 0 10px; font-size: 14px;">Hourly Coverage</h4>';
-                    coverageHtml += '<div style="display: flex; gap: 5px; flex-wrap: nowrap;">';
-
-                    DAYS.forEach((day, dayIdx) => {
-                        coverageHtml += '<div style="flex: 1; min-width: 80px; background: #f8f9fa; border-radius: 4px; padding: 5px; border: 1px solid #ddd;">';
-                        coverageHtml += '<div style="text-align: center; font-weight: bold; font-size: 10px; margin-bottom: 5px; color:' + (dayIdx >= 5 ? '#8e44ad' : '#333') + ';">' + DAY_NAMES[dayIdx] + '</div>';
-                        coverageHtml += '<div style="display: flex; align-items: flex-end; gap: 1px; height: 60px; background: #eee; border-radius: 2px; padding: 2px;">';
-
-                        for (let t = OPEN_TIME; t < CLOSE_TIME; t += 0.5) {
-                            const count = getStaffCountAtTime(day, t);
-                            const heightPercent = (count / 5) * 100;
-                            let bgColor = '#e74c3c'; // gap
-                            if (count >= 1 && count <= 2) bgColor = '#27ae60'; // good
-                            else if (count === 3) bgColor = '#3498db'; // acceptable
-                            else if (count >= 4) bgColor = '#e67e22'; // over
-
-                            coverageHtml += '<div style="flex: 1; height: ' + heightPercent + '%; background: ' + bgColor + '; min-height: ' + (count > 0 ? '2px' : '100%') + '; border-radius: 1px 1px 0 0; -webkit-print-color-adjust: exact !important; print-color-adjust: exact !important;"></div>';
-                        }
-
-                        coverageHtml += '</div></div>';
-                    });
-
-                    coverageHtml += '</div></div>';
-                }
-
-                const pageBreak = i > 0 ? 'page-break-before: always;' : '';
-                const weekDisplay = formatWeekDisplay(weekStart);
-
-                pagesHtml += '<div class="print-week-page" style="' + pageBreak + '">';
-                pagesHtml += '<img src="logo.svg" alt="Xrota" style="display: block; height: 40px; margin: 0 auto 5px;">';
-                pagesHtml += '<p style="text-align: center; margin: 0 0 15px; font-size: 14px; font-weight: bold;">Week: ' + weekDisplay + '</p>';
-                pagesHtml += tableHtml;
-                pagesHtml += coverageHtml;
-                pagesHtml += '<div style="margin-top: 15px;"><h4 style="margin: 0 0 5px; font-size: 11px;">Notes:</h4><div style="border: 1px solid #ccc; min-height: 60px; border-radius: 4px;"></div></div>';
-                const totalPages = weeks.length + 1; // +1 for weekend balance page
-                pagesHtml += '<div style="display: flex; justify-content: space-between; margin-top: 20px; font-size: 11px; color: #666;">';
-                pagesHtml += '<span>' + timestamp + '</span>';
-                pagesHtml += '<span>Page ' + (i + 1) + ' of ' + totalPages + '</span>';
-                pagesHtml += '</div></div>';
-            }
-
-            // Add weekend balance stats on final page
-            // Build shift distribution summary page for the weeks being printed
-            const distribution = getShiftDistributionForPrintedWeeks(weeks);
-
-            // Calculate team totals
-            const teamTotals = { early: 0, mid: 0, late: 0, floating: 0, long: 0, total: 0, weekends: 0 };
-            staff.forEach(s => {
-                const dist = distribution[s.id];
-                teamTotals.early += dist.early;
-                teamTotals.mid += dist.mid;
-                teamTotals.late += dist.late;
-                teamTotals.floating += dist.floating;
-                teamTotals.long += dist.long;
-                teamTotals.total += dist.total;
-                teamTotals.weekends += dist.weekends;
-            });
-
-            let summaryHtml = '<div style="page-break-before: always; padding-top: 20px;">';
-            summaryHtml += '<img src="logo.svg" alt="Xrota" style="display: block; height: 40px; margin: 0 auto 5px;">';
-            summaryHtml += '<h3 style="text-align: center; margin: 0 0 10px; font-size: 16px;">Shift Distribution - ' + weeks.length + ' Week' + (weeks.length === 1 ? '' : 's') + '</h3>';
-            summaryHtml += '<p style="text-align: center; margin: 0 0 20px; font-size: 12px; color: #666;">Total shifts by type per person. Includes any manual changes.</p>';
-
-            // Build table
-            summaryHtml += '<table style="width: 100%; border-collapse: collapse; font-size: 12px;">';
-            summaryHtml += '<thead><tr>';
-            summaryHtml += '<th style="padding: 10px; text-align: left; border: 1px solid #ddd; background: #34495e; color: #fff; -webkit-print-color-adjust: exact; print-color-adjust: exact;">Staff</th>';
-            summaryHtml += '<th style="padding: 10px; text-align: center; border: 1px solid #ddd; background: #d4edda; color: #155724; -webkit-print-color-adjust: exact; print-color-adjust: exact;">Early</th>';
-            summaryHtml += '<th style="padding: 10px; text-align: center; border: 1px solid #ddd; background: #fff3cd; color: #856404; -webkit-print-color-adjust: exact; print-color-adjust: exact;">Mid</th>';
-            summaryHtml += '<th style="padding: 10px; text-align: center; border: 1px solid #ddd; background: #cce5ff; color: #004085; -webkit-print-color-adjust: exact; print-color-adjust: exact;">Late</th>';
-            summaryHtml += '<th style="padding: 10px; text-align: center; border: 1px solid #ddd; background: #e2d5f1; color: #4a235a; -webkit-print-color-adjust: exact; print-color-adjust: exact;">Float</th>';
-            summaryHtml += '<th style="padding: 10px; text-align: center; border: 1px solid #ddd; background: #f8d7da; color: #721c24; -webkit-print-color-adjust: exact; print-color-adjust: exact;">Long</th>';
-            summaryHtml += '<th style="padding: 10px; text-align: center; border: 1px solid #ddd; background: #f8f9fa; -webkit-print-color-adjust: exact; print-color-adjust: exact;">Total</th>';
-            summaryHtml += '<th style="padding: 10px; text-align: center; border: 1px solid #ddd; background: #8e44ad; color: #fff; -webkit-print-color-adjust: exact; print-color-adjust: exact;">Weekend Shifts</th>';
-            summaryHtml += '</tr></thead><tbody>';
-
-            staff.forEach(s => {
-                const dist = distribution[s.id];
-                summaryHtml += '<tr>';
-                summaryHtml += '<td style="padding: 10px; border: 1px solid #ddd; font-weight: bold; background: #ecf0f1; -webkit-print-color-adjust: exact; print-color-adjust: exact;">' + s.name + '</td>';
-                summaryHtml += '<td style="padding: 10px; border: 1px solid #ddd; text-align: center; background: #d4edda; color: #155724; font-weight: bold; -webkit-print-color-adjust: exact; print-color-adjust: exact;">' + dist.early + '</td>';
-                summaryHtml += '<td style="padding: 10px; border: 1px solid #ddd; text-align: center; background: #fff3cd; color: #856404; font-weight: bold; -webkit-print-color-adjust: exact; print-color-adjust: exact;">' + dist.mid + '</td>';
-                summaryHtml += '<td style="padding: 10px; border: 1px solid #ddd; text-align: center; background: #cce5ff; color: #004085; font-weight: bold; -webkit-print-color-adjust: exact; print-color-adjust: exact;">' + dist.late + '</td>';
-                summaryHtml += '<td style="padding: 10px; border: 1px solid #ddd; text-align: center; background: #e2d5f1; color: #4a235a; font-weight: bold; -webkit-print-color-adjust: exact; print-color-adjust: exact;">' + dist.floating + '</td>';
-                summaryHtml += '<td style="padding: 10px; border: 1px solid #ddd; text-align: center; background: #f8d7da; color: #721c24; font-weight: bold; -webkit-print-color-adjust: exact; print-color-adjust: exact;">' + dist.long + '</td>';
-                summaryHtml += '<td style="padding: 10px; border: 1px solid #ddd; text-align: center; font-weight: bold;">' + dist.total + '</td>';
-                summaryHtml += '<td style="padding: 10px; border: 1px solid #ddd; text-align: center; font-weight: bold;">' + dist.weekends + '</td>';
-                summaryHtml += '</tr>';
-            });
-
-            // Team average row
-            summaryHtml += '<tr style="background: #34495e; color: #fff; -webkit-print-color-adjust: exact; print-color-adjust: exact;">';
-            summaryHtml += '<td style="padding: 10px; border: 1px solid #ddd; font-weight: bold;">Team Average</td>';
-            summaryHtml += '<td style="padding: 10px; border: 1px solid #ddd; text-align: center;">' + (teamTotals.early / staff.length).toFixed(1) + '</td>';
-            summaryHtml += '<td style="padding: 10px; border: 1px solid #ddd; text-align: center;">' + (teamTotals.mid / staff.length).toFixed(1) + '</td>';
-            summaryHtml += '<td style="padding: 10px; border: 1px solid #ddd; text-align: center;">' + (teamTotals.late / staff.length).toFixed(1) + '</td>';
-            summaryHtml += '<td style="padding: 10px; border: 1px solid #ddd; text-align: center;">' + (teamTotals.floating / staff.length).toFixed(1) + '</td>';
-            summaryHtml += '<td style="padding: 10px; border: 1px solid #ddd; text-align: center;">' + (teamTotals.long / staff.length).toFixed(1) + '</td>';
-            summaryHtml += '<td style="padding: 10px; border: 1px solid #ddd; text-align: center;">' + (teamTotals.total / staff.length).toFixed(1) + '</td>';
-            summaryHtml += '<td style="padding: 10px; border: 1px solid #ddd; text-align: center;">' + (teamTotals.weekends / staff.length).toFixed(1) + '</td>';
-            summaryHtml += '</tr>';
-
-            summaryHtml += '</tbody></table>';
-
-            summaryHtml += '<div style="display: flex; justify-content: space-between; margin-top: 20px; font-size: 11px; color: #666;">';
-            summaryHtml += '<span>' + timestamp + '</span>';
-            summaryHtml += '<span>Page ' + (weeks.length + 1) + ' of ' + (weeks.length + 1) + '</span>';
-            summaryHtml += '</div></div>';
-
-            pagesHtml += summaryHtml;
-
-            // Restore original week
-            currentWeekStart = originalWeek;
-            loadWeekData();
-            renderTable();
-            renderTimeGrid();
-
-            // Use iframe approach
-            let iframe = document.getElementById('printFrame');
-            if (iframe) {
-                iframe.remove();
-            }
-
-            iframe = document.createElement('iframe');
-            iframe.id = 'printFrame';
-            iframe.style.position = 'fixed';
-            iframe.style.right = '0';
-            iframe.style.bottom = '0';
-            iframe.style.width = '0';
-            iframe.style.height = '0';
-            iframe.style.border = 'none';
-            document.body.appendChild(iframe);
-
-            const printDoc = iframe.contentWindow.document;
-            printDoc.open();
-            printDoc.write('<!DOCTYPE html><html><head><title>Xrota Schedule</title>');
-            printDoc.write('<style>');
-            printDoc.write('body { margin: 20px; font-family: -apple-system, BlinkMacSystemFont, sans-serif; }');
-            printDoc.write('table { width: 100%; border-collapse: collapse; }');
-            printDoc.write('th, td { border: 1px solid #ddd; padding: 8px; text-align: center; font-size: 11px; }');
-            printDoc.write('th { background: #34495e !important; color: white !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }');
-            printDoc.write('th.weekend { background: #8e44ad !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }');
-            printDoc.write('.shift-cell.early { background: #d4edda !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }');
-            printDoc.write('.shift-cell.late { background: #cce5ff !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }');
-            printDoc.write('.shift-cell.mid { background: #fff3cd !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }');
-            printDoc.write('.shift-cell.long { background: #f8d7da !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }');
-            printDoc.write('.shift-cell.floating { background: #e2d5f1 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }');
-            printDoc.write('.shift-cell.off { background: #f5f5f5 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }');
-            printDoc.write('.staff-name-input { border: none; background: transparent; font-weight: bold; }');
-            printDoc.write('.hours-display { font-size: 10px; }');
-            printDoc.write('.coverage-detail { margin-top: 20px; }');
-            printDoc.write('@media print { body { margin: 10px; } }');
-            printDoc.write('</style>');
-            printDoc.write('</head><body>');
-            printDoc.write(pagesHtml);
-            printDoc.write('</body></html>');
-            printDoc.close();
-
-            // Print after a short delay
-            setTimeout(function() {
-                iframe.contentWindow.focus();
-                iframe.contentWindow.print();
-            }, 300);
+            printMultipleWeeks(weeks, includeCoverage, true);
         }
 
         function printWeekRangeByCount(startDate, numWeeks, includeCoverage) {
@@ -3550,12 +3357,192 @@
                 current.setDate(current.getDate() + 7);
             }
 
-            // Calculate end date for the range (last day of last week)
-            const endDate = new Date(weeks[weeks.length - 1]);
-            endDate.setDate(endDate.getDate() + 6);
+            if (weeks.length === 0) {
+                alert('Invalid number of weeks');
+                return;
+            }
 
-            // Use the existing printWeekRange logic by calling it with calculated end date
-            printWeekRange(startMonday, endDate, includeCoverage);
+            printMultipleWeeks(weeks, includeCoverage, true);
+        }
+
+        function printMultipleWeeks(weeks, includeCoverage, includeDistribution) {
+            // Store original week
+            const originalWeek = new Date(currentWeekStart);
+
+            const now = new Date();
+            const timestamp = 'Printed: ' + now.toLocaleDateString('en-GB') + ' at ' + now.toLocaleTimeString('en-GB', {hour: '2-digit', minute: '2-digit'});
+            const totalPages = includeDistribution ? weeks.length + 1 : weeks.length;
+
+            let pagesHtml = '';
+
+            // For each week, switch to it, render, and capture the DOM
+            for (let i = 0; i < weeks.length; i++) {
+                const weekStart = weeks[i];
+
+                // Switch to this week and render
+                currentWeekStart = weekStart;
+                loadWeekData();
+                renderTable();
+                renderTimeGrid();
+
+                // Capture the rota table, replacing input elements with plain text
+                const rotaContainer = document.querySelector('.rota-container');
+                let tableHtml = '';
+                if (rotaContainer) {
+                    // Clone the container so we don't modify the original
+                    const clone = rotaContainer.cloneNode(true);
+                    // Replace all staff name inputs with plain text spans
+                    clone.querySelectorAll('.staff-name-input').forEach(input => {
+                        const span = document.createElement('span');
+                        span.textContent = input.value;
+                        span.style.fontWeight = 'bold';
+                        input.parentNode.replaceChild(span, input);
+                    });
+                    tableHtml = clone.innerHTML;
+                }
+
+                // Capture the coverage graph if requested
+                let coverageHtml = '';
+                if (includeCoverage) {
+                    const coverageDetail = document.querySelector('.coverage-detail');
+                    if (coverageDetail) {
+                        // Clone and make visible for capture
+                        coverageHtml = '<div class="coverage-detail print-visible">' + coverageDetail.innerHTML + '</div>';
+                    }
+                }
+
+                const pageBreak = i > 0 ? 'page-break-before: always;' : '';
+                const weekDisplay = formatWeekDisplay(weekStart);
+
+                pagesHtml += '<div class="print-page" style="' + pageBreak + '">';
+                pagesHtml += '<div class="print-header">';
+                pagesHtml += '<img src="logo.svg" alt="Xrota" style="display: block; height: 40px; margin: 0 auto 5px;">';
+                pagesHtml += '<p id="printWeek" style="text-align: center; margin: 0 0 5px; font-size: 14px; font-weight: bold;">Week: ' + weekDisplay + '</p>';
+                pagesHtml += '</div>';
+                pagesHtml += '<div class="rota-container" style="box-shadow: none; overflow: visible; margin-bottom: 10px;">' + tableHtml + '</div>';
+                pagesHtml += coverageHtml;
+                pagesHtml += '<div style="margin-top: 10px;"><h4 style="margin: 0 0 3px; font-size: 11px;">Notes:</h4><div style="border: 1px solid #ccc; min-height: 40px; border-radius: 4px;"></div></div>';
+                pagesHtml += '<div class="print-footer" style="display: flex; justify-content: space-between; margin-top: 10px; font-size: 10px; color: #666;">';
+                pagesHtml += '<span>' + timestamp + '</span>';
+                pagesHtml += '<span>Page ' + (i + 1) + ' of ' + totalPages + '</span>';
+                pagesHtml += '</div></div>';
+            }
+
+            // Build shift distribution summary page (only for multi-week)
+            if (includeDistribution) {
+                const distribution = getShiftDistributionForPrintedWeeks(weeks);
+                pagesHtml += buildShiftDistributionPage(distribution, weeks.length, timestamp, totalPages);
+            }
+
+            // Restore original week
+            currentWeekStart = originalWeek;
+            loadWeekData();
+            renderTable();
+            renderTimeGrid();
+
+            // Create iframe and print
+            let iframe = document.getElementById('printFrame');
+            if (iframe) iframe.remove();
+
+            iframe = document.createElement('iframe');
+            iframe.id = 'printFrame';
+            iframe.style.cssText = 'position: fixed; right: 0; bottom: 0; width: 0; height: 0; border: none;';
+            document.body.appendChild(iframe);
+
+            const printDoc = iframe.contentWindow.document;
+            printDoc.open();
+            printDoc.write('<!DOCTYPE html><html><head><title>Xrota Schedule</title>');
+            printDoc.write('<link rel="stylesheet" href="rota.css">');
+            printDoc.write('<style>');
+            printDoc.write('* { box-sizing: border-box; }');
+            printDoc.write('body { margin: 10px; font-family: -apple-system, BlinkMacSystemFont, sans-serif; background: #fff; color: #333; max-width: 100%; }');
+            printDoc.write('.print-page { max-width: 100%; }');
+            printDoc.write('.rota-container { box-shadow: none !important; overflow: visible !important; border-radius: 8px; max-width: 100%; }');
+            printDoc.write('table { width: 100%; max-width: 100%; table-layout: fixed; border-collapse: separate; border-spacing: 0; }');
+            printDoc.write('th:first-child { border-top-left-radius: 8px; }');
+            printDoc.write('th:last-child { border-top-right-radius: 8px; }');
+            printDoc.write('tbody tr:last-child td:first-child { border-bottom-left-radius: 8px; }');
+            printDoc.write('tbody tr:last-child td:last-child { border-bottom-right-radius: 8px; }');
+            printDoc.write('.coverage-detail.print-visible { display: block !important; margin-top: 10px; background: #fff !important; box-shadow: none !important; max-width: 100%; }');
+            printDoc.write('#coverageGraph { max-width: 100%; }');
+            printDoc.write('#coverageGraph > div { background: #fff !important; border-color: #ddd !important; }');
+            printDoc.write('.graph-area { background: #fff !important; }');
+            printDoc.write('.floating-legend-box, .floating-overlay { border-color: #333 !important; border-style: dotted !important; }');
+            printDoc.write('.staff-name-input { border: none !important; background: transparent !important; }');
+            printDoc.write('@media print { @page { size: landscape; margin: 10mm; } }');
+            printDoc.write('</style>');
+            printDoc.write('</head><body>');
+            printDoc.write(pagesHtml);
+            printDoc.write('</body></html>');
+            printDoc.close();
+
+            setTimeout(function() {
+                iframe.contentWindow.focus();
+                iframe.contentWindow.print();
+            }, 500);
+        }
+
+        function buildShiftDistributionPage(distribution, numWeeks, timestamp, totalPages) {
+            const teamTotals = { early: 0, mid: 0, late: 0, floating: 0, long: 0, total: 0, weekends: 0 };
+            staff.forEach(s => {
+                const dist = distribution[s.id];
+                teamTotals.early += dist.early;
+                teamTotals.mid += dist.mid;
+                teamTotals.late += dist.late;
+                teamTotals.floating += dist.floating;
+                teamTotals.long += dist.long;
+                teamTotals.total += dist.total;
+                teamTotals.weekends += dist.weekends;
+            });
+
+            let html = '<div class="print-page" style="page-break-before: always;">';
+            html += '<img src="logo.svg" alt="Xrota" style="display: block; height: 40px; margin: 0 auto 5px;">';
+            html += '<h3 style="text-align: center; margin: 0 0 10px; font-size: 16px;">Shift Distribution - ' + numWeeks + ' Week' + (numWeeks === 1 ? '' : 's') + '</h3>';
+            html += '<p style="text-align: center; margin: 0 0 20px; font-size: 12px; color: #666;">Total shifts by type per person. Includes any manual changes.</p>';
+
+            html += '<table style="width: 100%; border-collapse: collapse; font-size: 12px;">';
+            html += '<thead><tr>';
+            html += '<th style="padding: 10px; text-align: left; border: 1px solid #ddd; background: #34495e; color: #fff; -webkit-print-color-adjust: exact; print-color-adjust: exact;">Staff</th>';
+            html += '<th style="padding: 10px; text-align: center; border: 1px solid #ddd; background: #d4edda; color: #155724; -webkit-print-color-adjust: exact; print-color-adjust: exact;">Early</th>';
+            html += '<th style="padding: 10px; text-align: center; border: 1px solid #ddd; background: #fff3cd; color: #856404; -webkit-print-color-adjust: exact; print-color-adjust: exact;">Mid</th>';
+            html += '<th style="padding: 10px; text-align: center; border: 1px solid #ddd; background: #cce5ff; color: #004085; -webkit-print-color-adjust: exact; print-color-adjust: exact;">Late</th>';
+            html += '<th style="padding: 10px; text-align: center; border: 1px solid #ddd; background: #e2d5f1; color: #4a235a; -webkit-print-color-adjust: exact; print-color-adjust: exact;">Float</th>';
+            html += '<th style="padding: 10px; text-align: center; border: 1px solid #ddd; background: #f8d7da; color: #721c24; -webkit-print-color-adjust: exact; print-color-adjust: exact;">Long</th>';
+            html += '<th style="padding: 10px; text-align: center; border: 1px solid #ddd; background: #f8f9fa; -webkit-print-color-adjust: exact; print-color-adjust: exact;">Total</th>';
+            html += '<th style="padding: 10px; text-align: center; border: 1px solid #ddd; background: #8e44ad; color: #fff; -webkit-print-color-adjust: exact; print-color-adjust: exact;">Weekend</th>';
+            html += '</tr></thead><tbody>';
+
+            staff.forEach(s => {
+                const dist = distribution[s.id];
+                html += '<tr>';
+                html += '<td style="padding: 10px; border: 1px solid #ddd; font-weight: bold; background: #ecf0f1; -webkit-print-color-adjust: exact; print-color-adjust: exact;">' + s.name + '</td>';
+                html += '<td style="padding: 10px; border: 1px solid #ddd; text-align: center; background: #d4edda; color: #155724; font-weight: bold; -webkit-print-color-adjust: exact; print-color-adjust: exact;">' + dist.early + '</td>';
+                html += '<td style="padding: 10px; border: 1px solid #ddd; text-align: center; background: #fff3cd; color: #856404; font-weight: bold; -webkit-print-color-adjust: exact; print-color-adjust: exact;">' + dist.mid + '</td>';
+                html += '<td style="padding: 10px; border: 1px solid #ddd; text-align: center; background: #cce5ff; color: #004085; font-weight: bold; -webkit-print-color-adjust: exact; print-color-adjust: exact;">' + dist.late + '</td>';
+                html += '<td style="padding: 10px; border: 1px solid #ddd; text-align: center; background: #e2d5f1; color: #4a235a; font-weight: bold; -webkit-print-color-adjust: exact; print-color-adjust: exact;">' + dist.floating + '</td>';
+                html += '<td style="padding: 10px; border: 1px solid #ddd; text-align: center; background: #f8d7da; color: #721c24; font-weight: bold; -webkit-print-color-adjust: exact; print-color-adjust: exact;">' + dist.long + '</td>';
+                html += '<td style="padding: 10px; border: 1px solid #ddd; text-align: center; font-weight: bold;">' + dist.total + '</td>';
+                html += '<td style="padding: 10px; border: 1px solid #ddd; text-align: center; font-weight: bold;">' + dist.weekends + '</td>';
+                html += '</tr>';
+            });
+
+            html += '<tr style="background: #34495e; color: #fff; -webkit-print-color-adjust: exact; print-color-adjust: exact;">';
+            html += '<td style="padding: 10px; border: 1px solid #ddd; font-weight: bold;">Team Average</td>';
+            html += '<td style="padding: 10px; border: 1px solid #ddd; text-align: center;">' + (teamTotals.early / staff.length).toFixed(1) + '</td>';
+            html += '<td style="padding: 10px; border: 1px solid #ddd; text-align: center;">' + (teamTotals.mid / staff.length).toFixed(1) + '</td>';
+            html += '<td style="padding: 10px; border: 1px solid #ddd; text-align: center;">' + (teamTotals.late / staff.length).toFixed(1) + '</td>';
+            html += '<td style="padding: 10px; border: 1px solid #ddd; text-align: center;">' + (teamTotals.floating / staff.length).toFixed(1) + '</td>';
+            html += '<td style="padding: 10px; border: 1px solid #ddd; text-align: center;">' + (teamTotals.long / staff.length).toFixed(1) + '</td>';
+            html += '<td style="padding: 10px; border: 1px solid #ddd; text-align: center;">' + (teamTotals.total / staff.length).toFixed(1) + '</td>';
+            html += '<td style="padding: 10px; border: 1px solid #ddd; text-align: center;">' + (teamTotals.weekends / staff.length).toFixed(1) + '</td>';
+            html += '</tr></tbody></table>';
+
+            html += '<div style="display: flex; justify-content: space-between; margin-top: 20px; font-size: 10px; color: #666;">';
+            html += '<span>' + timestamp + '</span>';
+            html += '<span>Page ' + totalPages + ' of ' + totalPages + '</span>';
+            html += '</div></div>';
+
+            return html;
         }
 
         function toggleDarkMode() {

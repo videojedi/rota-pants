@@ -218,6 +218,10 @@ h1 {
 
 /* Print styles */
 @media print {
+    @page {
+        size: landscape;
+        margin: 10mm;
+    }
     :root, [data-theme="dark"] {
         --bg-color: #fff;
         --card-bg: #fff;
@@ -256,9 +260,10 @@ h1 {
     .coverage-detail.print-visible {
         display: block !important;
         margin-top: 10px;
-        background: #fff;
+        background: #fff !important;
         padding: 5px;
         page-break-inside: avoid;
+        box-shadow: none !important;
     }
     .coverage-detail.print-visible h4 {
         font-size: 12px;
@@ -267,8 +272,12 @@ h1 {
     .coverage-detail.print-visible #coverageGraph {
         gap: 3px !important;
     }
+    .coverage-detail.print-visible #coverageGraph > div {
+        background: #fff !important;
+    }
     .coverage-detail.print-visible .graph-area {
         height: 50px !important;
+        background: #fff !important;
         -webkit-print-color-adjust: exact !important;
         print-color-adjust: exact !important;
     }
@@ -300,6 +309,11 @@ h1 {
         font-size: 8px !important;
         margin-bottom: 3px !important;
         gap: 8px !important;
+    }
+    .floating-legend-box,
+    .floating-overlay {
+        border-color: #333 !important;
+        border-style: dotted !important;
     }
     .coverage-detail.print-visible #coverageGraph > div {
         padding: 4px !important;
@@ -334,7 +348,13 @@ h1 {
     }
     .print-notes {
         display: block !important;
-        margin-top: 10px;
+        margin-top: 8px;
+    }
+    .print-notes h4 {
+        margin: 0 0 3px !important;
+    }
+    .print-notes > div {
+        min-height: 40px !important;
     }
     .staff-name-input {
         border: none;
